@@ -1,0 +1,2 @@
+Pieces and board reproducing those of the Fritz chess program (ChessBase).
+Not to be published.

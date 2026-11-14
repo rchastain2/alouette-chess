@@ -1,0 +1,5 @@
+/pixelchess
+/temp/
+*.o
+*.ppu
+/engines/rodent-ii/sources/rodentII

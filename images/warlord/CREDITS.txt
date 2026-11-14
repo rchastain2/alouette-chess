@@ -1,0 +1,2 @@
+Pieces from the Warlord chess program by William H. Rogers.
+https://chessprogramming.org/Warlord
