@@ -104,7 +104,7 @@ begin
     else
       FState := gsStalemate;
   end else
-    if (FCurrent.Data.FHalfMoves = 50) or Repetition or InsufficientMaterial then
+    if (FCurrent.Data.FHalfMoves >= 100) or Repetition or InsufficientMaterial then
       FState := gsDraw
     else
       FState := gsProgress;
