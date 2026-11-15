@@ -67,6 +67,14 @@ var
   LAudioSpec: TSDL_AudioSpec;
   LSounds: array[TSound] of TSoundData;
   LSoundEnabled: boolean = TRUE;
+  LStartFen: string = '';
+  LFirstMove: integer = 1;
+  LBlackFirst: boolean = FALSE;
+  LMoveTime: integer = CEngineMoveTime;
+  LHasEngineLine: boolean = FALSE;
+  LEngineError: string = '';
+  LNotice: string = '';
+  LNoticeUntil: UInt64 = 0;
 
 procedure Fail(const AMessage: string);
 begin
@@ -351,6 +359,7 @@ begin
     LList.Add('');
     LList.Add('[engine]');
     LList.Add('path=');
+    LList.Add('movetime=' + IntToStr(CEngineMoveTime));
     LList.Add('');
     LList.Add('[sound]');
     LList.Add('enabled=1');
@@ -365,10 +374,190 @@ begin
   end;
 end;
 
+const
+  CUsage = 'Usage: pixelchess [-t NAME] [-e PATH] [-m MS] [-f FEN] [-h]';
+
+procedure PrintUsage;
+begin
+  WriteLn(CUsage);
+  WriteLn('  --theme=NAME, -t NAME    graphical theme: ', ThemeNames);
+  WriteLn('  --engine=PATH, -e PATH   UCI engine; an empty path disables the engine');
+  WriteLn('  --movetime=MS, -m MS     engine thinking time per move, in milliseconds');
+  WriteLn('  --fen=FEN, -f FEN        start position');
+  WriteLn('  --help, -h               show this help');
+end;
+
+procedure UsageError(const AMessage: string);
+begin
+  WriteLn(ErrOutput, AMessage);
+  WriteLn(ErrOutput, CUsage);
+  Halt(1);
+end;
+
+function CheckFen(var AFen: string): boolean;
+var
+  LFields, LRanks: TStringArray;
+  LWhiteKings, LBlackKings, LCount, LValue, i, j: integer;
+  c: char;
+begin
+  result := FALSE;
+  LFields := Trim(AFen).Split([' '], TStringSplitOptions.ExcludeEmpty);
+  if Length(LFields) = 4 then
+  begin
+    SetLength(LFields, 6);
+    LFields[4] := '0';
+    LFields[5] := '1';
+  end;
+  if Length(LFields) <> 6 then
+    exit;
+  LRanks := LFields[0].Split(['/']);
+  if Length(LRanks) <> 8 then
+    exit;
+  LWhiteKings := 0;
+  LBlackKings := 0;
+  for i := 0 to 7 do
+  begin
+    LCount := 0;
+    for j := 1 to Length(LRanks[i]) do
+    begin
+      c := LRanks[i][j];
+      if c in ['1'..'8'] then
+        Inc(LCount, Ord(c) - Ord('0'))
+      else if Pos(c, CPieceChars) > 0 then
+      begin
+        Inc(LCount);
+        if c = 'K' then
+          Inc(LWhiteKings)
+        else if c = 'k' then
+          Inc(LBlackKings)
+        else if (c in ['P', 'p']) and (i in [0, 7]) then
+          exit;
+      end else
+        exit;
+    end;
+    if LCount <> 8 then
+      exit;
+  end;
+  if (LWhiteKings <> 1) or (LBlackKings <> 1) then
+    exit;
+  if (LFields[1] <> 'w') and (LFields[1] <> 'b') then
+    exit;
+  if LFields[2] <> '-' then
+    for j := 1 to Length(LFields[2]) do
+      if not (LFields[2][j] in ['K', 'Q', 'k', 'q']) then
+        exit;
+  if (LFields[3] <> '-') and not ((Length(LFields[3]) = 2) and (LFields[3][1] in ['a'..'h']) and (LFields[3][2] in ['3', '6'])) then
+    exit;
+  if not TryStrToInt(LFields[4], LValue) or (LValue < 0) then
+    exit;
+  if not TryStrToInt(LFields[5], LValue) or (LValue < 1) then
+    exit;
+  if LFields[1] = 'w' then
+    LFields[1] := 'b'
+  else
+    LFields[1] := 'w';
+  with TChessGame.Create(Concat(LFields[0], ' ', LFields[1], ' - - 0 1')) do
+  try
+    if Check then
+      exit;
+  finally
+    Free;
+  end;
+  if LFields[1] = 'w' then
+    LFields[1] := 'b'
+  else
+    LFields[1] := 'w';
+  AFen := string.Join(' ', LFields);
+  result := TRUE;
+end;
+
+procedure SetupStartPosition(const AFen: string);
+var
+  LFen: string;
+  LFields: TStringArray;
+begin
+  LFen := AFen;
+  if not CheckFen(LFen) then
+  begin
+    WriteLn(ErrOutput, 'Invalid FEN: ', AFen);
+    Halt(1);
+  end;
+  with TChessGame.Create(LFen) do
+  try
+    LStartFen := GetFen(FALSE);
+  finally
+    Free;
+  end;
+  if LStartFen = CFenStartPosition then
+    LStartFen := '';
+  LFields := LFen.Split([' ']);
+  LBlackFirst := LFields[1] = 'b';
+  LFirstMove := StrToInt(LFields[5]);
+end;
+
+function StartFen: string;
+begin
+  if LStartFen = '' then
+    result := CFenStartPosition
+  else
+    result := LStartFen;
+end;
+
+procedure ParseCommandLine(var AThemeName, AEnginePath, AMoveTime, AFen: string);
+var
+  i: integer;
+  LArg: string;
+
+  function TryOption(const ALong, AShort: string; out AValue: string): boolean;
+  begin
+    result := TRUE;
+    if Pos(ALong + '=', LArg) = 1 then
+      AValue := Trim(Copy(LArg, Length(ALong) + 2, MaxInt))
+    else if (LArg = ALong) or (LArg = AShort) then
+    begin
+      if i = ParamCount then
+        UsageError('Missing value after ' + LArg + '.');
+      Inc(i);
+      AValue := Trim(ParamStr(i));
+    end
+    else
+      result := FALSE;
+  end;
+
+var
+  LValue: string;
+begin
+  i := 1;
+  while i <= ParamCount do
+  begin
+    LArg := ParamStr(i);
+    if (LArg = '--help') or (LArg = '-h') then
+    begin
+      PrintUsage;
+      Halt(0);
+    end
+    else if TryOption('--theme', '-t', LValue) then
+      AThemeName := LValue
+    else if TryOption('--engine', '-e', LValue) then
+    begin
+      if LValue <> '' then
+        LValue := ExpandFileName(LValue);
+      AEnginePath := LValue;
+    end
+    else if TryOption('--movetime', '-m', LValue) then
+      AMoveTime := LValue
+    else if TryOption('--fen', '-f', LValue) then
+      AFen := LValue
+    else
+      UsageError('Unknown option: ' + LArg);
+    Inc(i);
+  end;
+end;
+
 procedure LoadConfig;
 var
   LIni: TIniFile;
-  LPath, LThemeName, LEnginePath: string;
+  LPath, LThemeName, LEnginePath, LMoveTimeText, LFen: string;
 begin
   LPath := Concat(SDL_GetBasePath, CConfigFile);
   if not FileExists(LPath) then
@@ -377,25 +566,38 @@ begin
   try
     LThemeName := Trim(LIni.ReadString('display', 'theme', CDefaultTheme));
     LEnginePath := Trim(LIni.ReadString('engine', 'path', ''));
+    LMoveTimeText := Trim(LIni.ReadString('engine', 'movetime', IntToStr(CEngineMoveTime)));
     LSoundEnabled := LIni.ReadBool('sound', 'enabled', TRUE);
   finally
     LIni.Free;
   end;
+  LFen := '';
+  ParseCommandLine(LThemeName, LEnginePath, LMoveTimeText, LFen);
+  if LMoveTimeText = '' then
+    LMoveTime := CEngineMoveTime
+  else if not TryStrToInt(LMoveTimeText, LMoveTime) or (LMoveTime <= 0) then
+  begin
+    WriteLn(ErrOutput, 'Invalid move time: ', LMoveTimeText, '. Expected a positive number of milliseconds.');
+    Halt(1);
+  end;
+  if LFen <> '' then
+    SetupStartPosition(LFen);
   if LThemeName = '' then
     LThemeName := CDefaultTheme;
   SetupTheme(LThemeName);
   if LEnginePath <> '' then
     StartEngine(LEnginePath);
+  LHasEngineLine := LEngine <> nil;
 end;
 
 procedure SetupPanel;
 var
   LHelpLines: integer;
 begin
-  if LEngine <> nil then
-    LHelpLines := 6
+  if LHasEngineLine then
+    LHelpLines := 7
   else
-    LHelpLines := 4;
+    LHelpLines := 5;
   LHelpSepY := LHeight - 12 - LHelpLines * CHelpStep;
   LHelpY := LHelpSepY + 6;
   LMaxLines := (LHelpSepY - 6 - CListY) div CLineHeight;
@@ -796,7 +998,7 @@ end;
 procedure NewGame;
 begin
   LGame.Free;
-  LGame := TChessGame.Create(CFenStartPosition);
+  LGame := TChessGame.Create(StartFen);
   LMoves.Clear;
   LSanMoves.Clear;
   LShownMoves.Clear;
@@ -867,22 +1069,119 @@ begin
   end;
 end;
 
+procedure EngineFailed(const AReason: string);
+begin
+  LEngineError := AReason;
+  FreeAndNil(LEngine);
+end;
+
 procedure UpdateEngine;
 var
-  LMove: string;
+  LMove, LBest: string;
 begin
   if LEngine = nil then
     exit;
-  if LEngine.Poll(LMove) and EngineToMove then
+  if LEngine.Poll(LBest) and EngineToMove then
   begin
-    LMove := EngineMoveToGame(LMove);
-    if LMove <> '' then
-      PlayMove(LMove);
+    LMove := EngineMoveToGame(LBest);
+    if LMove = '' then
+    begin
+      EngineFailed('illegal move ' + LBest);
+      exit;
+    end;
+    PlayMove(LMove);
   end;
   if LEngine.Name <> '' then
     LEngineName := LEngine.Name;
+  if not LEngine.Running then
+  begin
+    EngineFailed('stopped');
+    exit;
+  end;
   if not LEngine.Thinking and not LPromoting and (LGame.State = gsProgress) and EngineToMove then
-    LEngine.Go(LUciMoves, CEngineMoveTime);
+    LEngine.Go(LStartFen, LUciMoves, LMoveTime);
+end;
+
+function GameResult: string;
+begin
+  case LGame.State of
+    gsCheckmate:
+      if LGame.ActiveColor = pcWhite then
+        result := '0-1'
+      else
+        result := '1-0';
+    gsStalemate, gsDraw:
+      result := '1/2-1/2';
+  else
+    result := '*';
+  end;
+end;
+
+function PlayerName(const AColor: TPieceColor): string;
+begin
+  if (LEngine <> nil) and (LEngineColor = AColor) then
+    result := LEngineName
+  else
+    result := '?';
+end;
+
+function MoveSlot(const AIndex: integer): integer;
+begin
+  result := AIndex + Ord(LBlackFirst);
+end;
+
+function GamePgn: string;
+var
+  LText, LLine, LToken: string;
+  i, LSlot: integer;
+
+  procedure AddToken(const AToken: string);
+  begin
+    if (LLine <> '') and (Length(LLine) + 1 + Length(AToken) > 79) then
+    begin
+      LText := LText + LLine + LineEnding;
+      LLine := '';
+    end;
+    if LLine = '' then
+      LLine := AToken
+    else
+      LLine := LLine + ' ' + AToken;
+  end;
+
+begin
+  LText := Format('[Event "Casual game"]%s[Site "?"]%s[Date "%s"]%s[Round "-"]%s[White "%s"]%s[Black "%s"]%s[Result "%s"]%s',
+    [LineEnding, LineEnding, FormatDateTime('yyyy.mm.dd', Now), LineEnding, LineEnding,
+     PlayerName(pcWhite), LineEnding, PlayerName(pcBlack), LineEnding, GameResult, LineEnding]);
+  if LStartFen <> '' then
+    LText := LText + Format('[SetUp "1"]%s[FEN "%s"]%s', [LineEnding, LStartFen, LineEnding]);
+  LText := LText + LineEnding;
+  LLine := '';
+  for i := 0 to LSanMoves.Count - 1 do
+  begin
+    LSlot := MoveSlot(i);
+    LToken := LSanMoves[i];
+    if not Odd(LSlot) then
+      LToken := Format('%d. %s', [LFirstMove + LSlot div 2, LToken])
+    else if i = 0 then
+      LToken := Format('%d... %s', [LFirstMove, LToken]);
+    AddToken(LToken);
+  end;
+  AddToken(GameResult);
+  result := LText + LLine + LineEnding;
+end;
+
+procedure ShowNotice(const AText: string);
+begin
+  LNotice := AText;
+  LNoticeUntil := SDL_GetTicks + 2000;
+end;
+
+procedure CopyToClipboard(const AText, ANotice: string);
+begin
+  if SDL_SetClipboardText(PAnsiChar(AText)) then
+    ShowNotice(ANotice)
+  else
+    ShowNotice('Copy failed.');
 end;
 
 procedure SwitchSides;
@@ -1079,6 +1378,16 @@ begin
   end;
 end;
 
+function FitText(const AText: string; const AMaxWidth: integer): string;
+begin
+  result := AText;
+  if TextWidth(LTextFont, result) <= AMaxWidth then
+    exit;
+  while (result <> '') and (TextWidth(LTextFont, result + '...') > AMaxWidth) do
+    SetLength(result, Length(result) - 1);
+  result := result + '...';
+end;
+
 procedure DrawHelpLine(const AIndex: integer; const AKey, ALabel: string);
 begin
   DrawText(LTextFont, LBoardSize + 8, LHelpY + AIndex * CHelpStep, AKey, Color(ciHelp));
@@ -1087,7 +1396,7 @@ end;
 
 procedure DrawPanel;
 var
-  LStatus, LSecond, LBlack, LNumber: string;
+  LStatus, LSecond, LWhite, LBlack, LNumber: string;
   LLines, LFirst, i: integer;
   y: single;
 begin
@@ -1095,34 +1404,42 @@ begin
   FillRect(LBoardSize, 0, 2, LHeight, Color(ciPanelBorder));
   DrawText(LTitleFont, LBoardSize + (LWidth - LBoardSize - TextWidth(LTitleFont, UpperCase(CAppTitle))) div 2, CTitleY, UpperCase(CAppTitle), Color(ciTitle));
   LStatus := StatusText(LSecond);
+  if (LNotice <> '') and (SDL_GetTicks < LNoticeUntil) then
+    LSecond := LNotice;
   DrawText(LTextFont, LBoardSize + CStatusX, CStatusY, LStatus, Color(ciStatus));
   if LSecond <> '' then
     DrawText(LTextFont, LBoardSize + CStatusX, CSecondY, LSecond, Color(ciSecond));
   FillRect(LBoardSize + 8, CListY - 8, LWidth - LBoardSize - 16, 1, Color(ciSeparator));
-  LLines := (LSanMoves.Count + 1) div 2;
+  LLines := (MoveSlot(LSanMoves.Count) + 1) div 2;
   LFirst := 0;
   if LLines > LMaxLines then
     LFirst := LLines - LMaxLines;
   for i := LFirst to LLines - 1 do
   begin
     y := CListY + (i - LFirst) * CLineHeight;
-    if 2 * i + 1 < LSanMoves.Count then
-      LBlack := LSanMoves[2 * i + 1]
+    LWhite := '...';
+    if 2 * i - Ord(LBlackFirst) >= 0 then
+      LWhite := LSanMoves[2 * i - Ord(LBlackFirst)];
+    if 2 * i + 1 - Ord(LBlackFirst) < LSanMoves.Count then
+      LBlack := LSanMoves[2 * i + 1 - Ord(LBlackFirst)]
     else
       LBlack := '';
-    LNumber := Format('%d.', [i + 1]);
+    LNumber := Format('%d.', [LFirstMove + i]);
     DrawText(LTextFont, LBoardSize + 34 - TextWidth(LTextFont, LNumber), y, LNumber, Color(ciHelp));
-    DrawText(LTextFont, LBoardSize + 44, y, LSanMoves[2 * i], Color(ciList));
+    DrawText(LTextFont, LBoardSize + 44, y, LWhite, Color(ciList));
     DrawText(LTextFont, LBoardSize + 110, y, LBlack, Color(ciList));
   end;
   FillRect(LBoardSize + 8, LHelpSepY, LWidth - LBoardSize - 16, 1, Color(ciSeparator));
   i := 0;
-  if LEngine <> nil then
+  if LHasEngineLine then
   begin
-    if LEngineColor = pcWhite then
-      DrawText(LTextFont, LBoardSize + 8, LHelpY, LEngineName + ' plays White', Color(ciList))
+    if LEngine = nil then
+      LSecond := ' ' + LEngineError
+    else if LEngineColor = pcWhite then
+      LSecond := ' plays White'
     else
-      DrawText(LTextFont, LBoardSize + 8, LHelpY, LEngineName + ' plays Black', Color(ciList));
+      LSecond := ' plays Black';
+    DrawText(LTextFont, LBoardSize + 8, LHelpY, FitText(LEngineName, LWidth - LBoardSize - 16 - TextWidth(LTextFont, LSecond)) + LSecond, Color(ciList));
     i := 1;
   end;
   DrawHelpLine(i, 'N', 'new game');
@@ -1133,6 +1450,7 @@ begin
     Inc(i);
   end;
   DrawHelpLine(i + 2, '<-', 'take back');
+  DrawHelpLine(i + 4, 'C/P', 'copy PGN/FEN');
   if LSoundEnabled then
     DrawHelpLine(i + 3, 'M', 'mute')
   else
@@ -1199,6 +1517,10 @@ begin
               TakeBack;
             SDLK_M:
               LSoundEnabled := not LSoundEnabled;
+            SDLK_C:
+              CopyToClipboard(GamePgn, 'PGN copied.');
+            SDLK_P:
+              CopyToClipboard(LGame.GetFen(FALSE), 'FEN copied.');
           end;
         SDL_EVENT_MOUSE_MOTION:
           begin

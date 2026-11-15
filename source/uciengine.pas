@@ -5,7 +5,7 @@ unit UciEngine;
 interface
 
 uses
-  SysUtils, Classes, ctypes, SDL3;
+  {$IFDEF UNIX}BaseUnix,{$ENDIF} SysUtils, Classes, ctypes, SDL3;
 
 type
   TUciEngine = class
@@ -16,6 +16,7 @@ type
     FThinking: boolean;
     FDiscard: integer;
     FName: string;
+    FExited: boolean;
     procedure Send(const ALine: string);
     function ReadLine(out ALine: string): boolean;
   public
@@ -23,9 +24,10 @@ type
     destructor Destroy; override;
     procedure SetOption(const AName, AValue: string);
     procedure NewGame;
-    procedure Go(const AMoves: TStrings; const AMoveTime: integer);
+    procedure Go(const AFen: string; const AMoves: TStrings; const AMoveTime: integer);
     procedure Stop;
     function Poll(out AMove: string): boolean;
+    function Running: boolean;
     property Thinking: boolean read FThinking;
     property Name: string read FName;
   end;
@@ -38,6 +40,9 @@ var
   LProps: TSDL_PropertiesID;
 begin
   inherited Create;
+{$IFDEF UNIX}
+  fpSignal(SIGPIPE, SignalHandler(SIG_IGN));
+{$ENDIF}
   LArgs[0] := PAnsiChar(AExecutable);
   LArgs[1] := nil;
   LProps := SDL_CreateProperties;
@@ -59,7 +64,7 @@ destructor TUciEngine.Destroy;
 var
   i: integer;
 begin
-  if FProcess <> nil then
+  if (FProcess <> nil) and Running then
   begin
     Send('quit');
     i := 0;
@@ -73,8 +78,9 @@ begin
       SDL_KillProcess(FProcess, TRUE);
       SDL_WaitProcess(FProcess, TRUE, nil);
     end;
-    SDL_DestroyProcess(FProcess);
   end;
+  if FProcess <> nil then
+    SDL_DestroyProcess(FProcess);
   inherited Destroy;
 end;
 
@@ -122,12 +128,15 @@ begin
   Send('isready');
 end;
 
-procedure TUciEngine.Go(const AMoves: TStrings; const AMoveTime: integer);
+procedure TUciEngine.Go(const AFen: string; const AMoves: TStrings; const AMoveTime: integer);
 var
   LLine: string;
   i: integer;
 begin
-  LLine := 'position startpos';
+  if AFen = '' then
+    LLine := 'position startpos'
+  else
+    LLine := 'position fen ' + AFen;
   if AMoves.Count > 0 then
   begin
     LLine := LLine + ' moves';
@@ -170,6 +179,13 @@ begin
     FThinking := FALSE;
     exit(TRUE);
   end;
+end;
+
+function TUciEngine.Running: boolean;
+begin
+  if not FExited then
+    FExited := SDL_WaitProcess(FProcess, FALSE, nil);
+  result := not FExited;
 end;
 
 end.

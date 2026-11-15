@@ -40,6 +40,7 @@ theme=bftc
 
 [engine]
 path=
+movetime=1000
 
 [sound]
 enabled=1
@@ -47,9 +48,24 @@ enabled=1
 
 - `theme`: one of `bftc` (default), `fritz`, `lanea`, `lucas`, `m484`, `smirf`, `warlord`
 - `path`: the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. Leave it empty to have both sides played by humans.
+- `movetime`: the engine's thinking time per move, in milliseconds (default `1000`).
 - `enabled`: `1` (default) to play sounds, `0` to start muted.
 
 An unknown theme name prints the list of valid ones. If the file is missing, it is created with the default values: theme `bftc`, no computer opponent, sound on.
+
+These settings can also be given on the command line, which overrides `pixelchess.ini` for that session without modifying it:
+
+```sh
+./pixelchess --theme=fritz
+./pixelchess -t lucas
+./pixelchess --engine=/usr/games/stockfish --movetime=3000
+./pixelchess -e ../engines/ct800 -m 500 -t m484
+./pixelchess --engine=
+./pixelchess --fen="4k3/8/8/8/8/8/8/4K2R w K - 0 1"
+./pixelchess --help
+```
+
+On the command line, a relative engine path is resolved from the current directory. An empty path (`--engine=`) disables the computer opponent set in `pixelchess.ini`. `--fen` (or `-f`) starts the game, and every new game, from the given position.
 
 ## Controls
 
@@ -61,6 +77,8 @@ An unknown theme name prints the list of valid ones. If the file is missing, it 
 | `S`               | Switch sides (when playing the engine)  |
 | `Backspace`       | Take back a move                        |
 | `M`               | Mute or unmute sounds                   |
+| `C`               | Copy the game (PGN)                     |
+| `P`               | Copy the position (FEN)                 |
 | `Esc`             | Cancel a promotion, or quit             |
 
 ## Project layout

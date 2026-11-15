@@ -55,7 +55,7 @@ const
       )
     ),
     (
-      Name: 'lucas'; Kind: tkImage; Square: 48; Margin: 16;
+      Name: 'lucas'; Kind: tkImage; Square: 32; Margin: 16;
       Colors: (
         $121418FF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $22262EFF, $4A5262FF, $C8D7EBFF, $E4E8EEFF, $FF7864FF, $4A5262FF, $C8CED8FF, $8890A0FF,
