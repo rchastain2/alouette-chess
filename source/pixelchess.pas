@@ -27,10 +27,15 @@ const
   CSheetPieceOrder = 'KQRBNP';
   CEngineMoveTime = 1000;
   CConfigFile = 'pixelchess.ini';
-  CDefaultTheme = 'lanea';
+  CDefaultTheme = 'bftc';
 
 type
   TBoardArray = array[0..7, 0..7] of char;
+  TSound = (sndMove, sndCapture, sndCheck, sndVictory, sndDefeat, sndDraw);
+  TSoundData = record
+    Data: pcuint8;
+    Len: cint;
+  end;
 
 var
   LWindow: PSDL_Window;
@@ -58,6 +63,10 @@ var
   LEngineColor: TPieceColor = pcBlack;
   LEngineName: string;
   LGrabCursor, LGrabbingCursor, LCurrentCursor: PSDL_Cursor;
+  LAudioStream: PSDL_AudioStream = nil;
+  LAudioSpec: TSDL_AudioSpec;
+  LSounds: array[TSound] of TSoundData;
+  LSoundEnabled: boolean = TRUE;
 
 procedure Fail(const AMessage: string);
 begin
@@ -111,6 +120,72 @@ begin
     SDL_DestroyCursor(LGrabCursor);
   if LGrabbingCursor <> nil then
     SDL_DestroyCursor(LGrabbingCursor);
+end;
+
+procedure LoadSound(const ASound: TSound; const AName: string);
+var
+  LPath: string;
+  LSpec: TSDL_AudioSpec;
+  LBuf: pcuint8;
+  LLen: cuint32;
+begin
+  LSounds[ASound].Data := nil;
+  LSounds[ASound].Len := 0;
+  LPath := Concat(SDL_GetBasePath, 'sounds/', AName, '.wav');
+  if not SDL_LoadWAV(PAnsiChar(LPath), @LSpec, @LBuf, @LLen) then
+    exit;
+  if (LSpec.format = LAudioSpec.format) and (LSpec.channels = LAudioSpec.channels) and (LSpec.freq = LAudioSpec.freq) then
+  begin
+    LSounds[ASound].Data := LBuf;
+    LSounds[ASound].Len := LLen;
+  end else
+  begin
+    if not SDL_ConvertAudioSamples(@LSpec, LBuf, LLen, @LAudioSpec, @LSounds[ASound].Data, @LSounds[ASound].Len) then
+    begin
+      LSounds[ASound].Data := nil;
+      LSounds[ASound].Len := 0;
+    end;
+    SDL_free(LBuf);
+  end;
+end;
+
+procedure InitAudio;
+begin
+  if not SDL_InitSubSystem(SDL_INIT_AUDIO) then
+    exit;
+  LAudioSpec.format := SDL_AUDIO_S16;
+  LAudioSpec.channels := 1;
+  LAudioSpec.freq := 44100;
+  LAudioStream := SDL_OpenAudioDeviceStream(SDL_AUDIO_DEVICE_DEFAULT_PLAYBACK, @LAudioSpec, nil, nil);
+  if LAudioStream = nil then
+    exit;
+  LoadSound(sndMove, 'move');
+  LoadSound(sndCapture, 'capture');
+  LoadSound(sndCheck, 'check');
+  LoadSound(sndVictory, 'victory');
+  LoadSound(sndDefeat, 'defeat');
+  LoadSound(sndDraw, 'draw');
+  SDL_ResumeAudioStreamDevice(LAudioStream);
+end;
+
+procedure FreeAudio;
+var
+  LSound: TSound;
+begin
+  if LAudioStream = nil then
+    exit;
+  SDL_DestroyAudioStream(LAudioStream);
+  LAudioStream := nil;
+  for LSound := Low(TSound) to High(TSound) do
+    SDL_free(LSounds[LSound].Data);
+end;
+
+procedure PlaySound(const ASound: TSound);
+begin
+  if not LSoundEnabled or (LAudioStream = nil) or (LSounds[ASound].Data = nil) then
+    exit;
+  SDL_ClearAudioStream(LAudioStream);
+  SDL_PutAudioStreamData(LAudioStream, LSounds[ASound].Data, LSounds[ASound].Len);
 end;
 
 procedure SetWindowIcon;
@@ -265,15 +340,44 @@ begin
   LEngineName := ExtractFileName(LPath);
 end;
 
+procedure CreateDefaultConfig(const APath: string);
+var
+  LList: TStringList;
+begin
+  LList := TStringList.Create;
+  try
+    LList.Add('[display]');
+    LList.Add('theme=' + CDefaultTheme);
+    LList.Add('');
+    LList.Add('[engine]');
+    LList.Add('path=');
+    LList.Add('');
+    LList.Add('[sound]');
+    LList.Add('enabled=1');
+    try
+      LList.SaveToFile(APath);
+    except
+      on E: Exception do
+        WriteLn(ErrOutput, E.Message);
+    end;
+  finally
+    LList.Free;
+  end;
+end;
+
 procedure LoadConfig;
 var
   LIni: TIniFile;
-  LThemeName, LEnginePath: string;
+  LPath, LThemeName, LEnginePath: string;
 begin
-  LIni := TIniFile.Create(Concat(SDL_GetBasePath, CConfigFile));
+  LPath := Concat(SDL_GetBasePath, CConfigFile);
+  if not FileExists(LPath) then
+    CreateDefaultConfig(LPath);
+  LIni := TIniFile.Create(LPath);
   try
-    LThemeName := Trim(LIni.ReadString('Display', 'Theme', CDefaultTheme));
-    LEnginePath := Trim(LIni.ReadString('Engine', 'Path', ''));
+    LThemeName := Trim(LIni.ReadString('display', 'theme', CDefaultTheme));
+    LEnginePath := Trim(LIni.ReadString('engine', 'path', ''));
+    LSoundEnabled := LIni.ReadBool('sound', 'enabled', TRUE);
   finally
     LIni.Free;
   end;
@@ -289,9 +393,9 @@ var
   LHelpLines: integer;
 begin
   if LEngine <> nil then
-    LHelpLines := 5
+    LHelpLines := 6
   else
-    LHelpLines := 3;
+    LHelpLines := 4;
   LHelpSepY := LHeight - 12 - LHelpLines * CHelpStep;
   LHelpY := LHelpSepY + 6;
   LMaxLines := (LHelpSepY - 6 - CListY) div CLineHeight;
@@ -629,7 +733,9 @@ procedure PlayMove(const AMove: string);
 var
   LSan: string;
   i: integer;
+  LCapture: boolean;
 begin
+  LCapture := LGame.IsCapture(AMove) or (LGame.IsEnPassant(AMove) <> '');
   LShownMoves.Append(ShownMove(AMove));
   if LGame.IsCastling(AMove) then
     LUciMoves.Append(ShownMove(AMove))
@@ -653,6 +759,22 @@ begin
   LSanMoves.Append(LSan);
   UpdatePosition;
   Deselect;
+  case LGame.State of
+    gsCheckmate:
+      if (LEngine <> nil) and (LGame.ActiveColor <> LEngineColor) then
+        PlaySound(sndDefeat)
+      else
+        PlaySound(sndVictory);
+    gsStalemate, gsDraw:
+      PlaySound(sndDraw);
+  else
+    if LGame.Check then
+      PlaySound(sndCheck)
+    else if LCapture then
+      PlaySound(sndCapture)
+    else
+      PlaySound(sndMove);
+  end;
 end;
 
 procedure TryMove(const AFile, ARank: integer);
@@ -1011,6 +1133,10 @@ begin
     Inc(i);
   end;
   DrawHelpLine(i + 2, '<-', 'take back');
+  if LSoundEnabled then
+    DrawHelpLine(i + 3, 'M', 'mute')
+  else
+    DrawHelpLine(i + 3, 'M', 'unmute');
 end;
 
 procedure DrawPromotion;
@@ -1071,6 +1197,8 @@ begin
               SwitchSides;
             SDLK_BACKSPACE:
               TakeBack;
+            SDLK_M:
+              LSoundEnabled := not LSoundEnabled;
           end;
         SDL_EVENT_MOUSE_MOTION:
           begin
@@ -1110,6 +1238,7 @@ begin
   LoadTextures;
   LoadFonts;
   LoadCursors;
+  InitAudio;
   LMoves := TStringList.Create;
   LSanMoves := TStringList.Create;
   LShownMoves := TStringList.Create;
@@ -1123,6 +1252,7 @@ begin
   LShownMoves.Free;
   LUciMoves.Free;
   LEngine.Free;
+  FreeAudio;
   FreeCursors;
   FreeFonts;
   FreeTextures;

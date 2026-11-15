@@ -35,17 +35,21 @@ make
 The theme and the computer opponent are set in `pixelchess.ini`, next to the executable:
 
 ```ini
-[Display]
-Theme=lanea
+[display]
+theme=bftc
 
-[Engine]
-Path=
+[engine]
+path=
+
+[sound]
+enabled=1
 ```
 
-- `Theme`: one of `lanea` (default), `m484`, `smirf`, `bftc`, `fritz`, `lucas`, `warlord`
-- `Path`: the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. Leave it empty to have both sides played by humans.
+- `theme`: one of `bftc` (default), `fritz`, `lanea`, `lucas`, `m484`, `smirf`, `warlord`
+- `path`: the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. Leave it empty to have both sides played by humans.
+- `enabled`: `1` (default) to play sounds, `0` to start muted.
 
-An unknown theme name prints the list of valid ones. If the file is missing, the default theme is used and there is no computer opponent.
+An unknown theme name prints the list of valid ones. If the file is missing, it is created with the default values: theme `bftc`, no computer opponent, sound on.
 
 ## Controls
 
@@ -56,6 +60,7 @@ An unknown theme name prints the list of valid ones. If the file is missing, the
 | `F`               | Flip the board                          |
 | `S`               | Switch sides (when playing the engine)  |
 | `Backspace`       | Take back a move                        |
+| `M`               | Mute or unmute sounds                   |
 | `Esc`             | Cancel a promotion, or quit             |
 
 ## Project layout
@@ -65,18 +70,21 @@ source/           Pascal sources
   chess/          Chess rules, FEN, SAN, move list
 images/           Piece and board graphics, one folder per theme
 fonts/            Fonts
+sounds/           Sound effects
+tools/            makesounds.py, which synthesizes the sound effects
 ```
 
 ## Credits
 
 - Fonts: Alagard by Hewett Tsoi, Minecraftia
+- Sounds: synthesized by `tools/makesounds.py` (requires Python 3 and NumPy)
 - Themes:
-  - `lanea`: [Boardgame tiles](https://opengameart.org/content/boardgame-tiles) by Lanea Zimmerman
-  - `m484`: [M484 chess set](https://opengameart.org/content/m484-chess-set) by Master484 (CC-BY 4.0 / OGA-BY 4.0)
-  - `smirf`: [pieces](https://www.chessvariants.com/contests/10/crc.html) by Reinhard Scharnagl
   - `bftc`: pieces from *Bobby Fischer Teaches Chess*
   - `fritz`: pieces and board reproducing those of the Fritz chess program (ChessBase)
+  - `lanea`: [Boardgame tiles](https://opengameart.org/content/boardgame-tiles) by Lanea Zimmerman
   - `lucas`: [Pixel chess pieces](https://opengameart.org/content/pixel-chess-pieces) by Lucas312
+  - `m484`: [M484 chess set](https://opengameart.org/content/m484-chess-set) by Master484 (CC-BY 4.0 / OGA-BY 4.0)
+  - `smirf`: [pieces](https://www.chessvariants.com/contests/10/crc.html) by Reinhard Scharnagl
   - `warlord`: pieces from the [Warlord](https://chessprogramming.org/Warlord) chess program by William H. Rogers
 
 ## License

@@ -28,33 +28,6 @@ type
 const
   CThemes: array[0..6] of TTheme = (
     (
-      Name: 'lanea'; Kind: tkImage; Square: 32; Margin: 32;
-      Colors: (
-        $14100EFF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
-        $2E241EFF, $5A483AFF, $EBC878FF, $E6E6DCFF, $FF7864FF, $5A483AFF, $D2C8B4FF, $968C78FF,
-        $0000006E, $2E241EF0, $EBC878FF, $00000000, $00000000, $EBC8785A,
-        $00000000, $00000000, $00000000, $00000000
-      )
-    ),
-    (
-      Name: 'm484'; Kind: tkSheet; Square: 28; Margin: 12;
-      Colors: (
-        $281A14FF, $FFDC5A5A, $FFDC5A78, $E6282882, $5AAAFF6E, $3C8C46BE, $3CA046E6, $3CA046A0,
-        $4A2E24FF, $4A2E24FF, $EAC9AEFF, $F0E1D2FF, $FF826EFF, $8C5845FF, $D6BEAAFF, $BE9682FF,
-        $00000064, $8C5845F5, $674032FF, $D69282FF, $D69282FF, $EAC9AEFF,
-        $00000000, $00000000, $00000000, $00000000
-      )
-    ),
-    (
-      Name: 'smirf'; Kind: tkDrawn; Square: 36; Margin: 16;
-      Colors: (
-        $14100EFF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
-        $3E2C22FF, $6E523EFF, $F0D9B5FF, $EFE3CCFF, $FF7864FF, $6E523EFF, $DCC8AFFF, $AA9178FF,
-        $0000006E, $3E2C22F0, $F0D9B5FF, $00000000, $B58863FF, $F0D9B5FF,
-        $EFE3CCFF, $F0D9B5FF, $B58863FF, $5C4033FF
-      )
-    ),
-    (
       Name: 'bftc'; Kind: tkDrawn; Square: 38; Margin: 16;
       Colors: (
         $101610FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $1E5A28B4, $1E6E28E6, $1E6E28A0,
@@ -73,12 +46,39 @@ const
       )
     ),
     (
+      Name: 'lanea'; Kind: tkImage; Square: 32; Margin: 32;
+      Colors: (
+        $14100EFF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
+        $2E241EFF, $5A483AFF, $EBC878FF, $E6E6DCFF, $FF7864FF, $5A483AFF, $D2C8B4FF, $968C78FF,
+        $0000006E, $2E241EF0, $EBC878FF, $00000000, $00000000, $EBC8785A,
+        $00000000, $00000000, $00000000, $00000000
+      )
+    ),
+    (
       Name: 'lucas'; Kind: tkImage; Square: 48; Margin: 16;
       Colors: (
         $121418FF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $22262EFF, $4A5262FF, $C8D7EBFF, $E4E8EEFF, $FF7864FF, $4A5262FF, $C8CED8FF, $8890A0FF,
         $0000006E, $22262EF0, $C8D7EBFF, $00000000, $808080FF, $C8D7EBFF,
         $464A52FF, $00000000, $00000000, $D8DCE0FF
+      )
+    ),
+    (
+      Name: 'm484'; Kind: tkSheet; Square: 28; Margin: 12;
+      Colors: (
+        $281A14FF, $FFDC5A5A, $FFDC5A78, $E6282882, $5AAAFF6E, $3C8C46BE, $3CA046E6, $3CA046A0,
+        $4A2E24FF, $4A2E24FF, $EAC9AEFF, $F0E1D2FF, $FF826EFF, $8C5845FF, $D6BEAAFF, $BE9682FF,
+        $00000064, $8C5845F5, $674032FF, $D69282FF, $D69282FF, $EAC9AEFF,
+        $00000000, $00000000, $00000000, $00000000
+      )
+    ),
+    (
+      Name: 'smirf'; Kind: tkDrawn; Square: 36; Margin: 16;
+      Colors: (
+        $14100EFF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
+        $3E2C22FF, $6E523EFF, $F0D9B5FF, $EFE3CCFF, $FF7864FF, $6E523EFF, $DCC8AFFF, $AA9178FF,
+        $0000006E, $3E2C22F0, $F0D9B5FF, $00000000, $B58863FF, $F0D9B5FF,
+        $EFE3CCFF, $F0D9B5FF, $B58863FF, $5C4033FF
       )
     ),
     (
