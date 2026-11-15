@@ -3,7 +3,7 @@ program pixelchess;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, ctypes, SDL3, SDL3_ttf, ChessTypes, ChessGame, Fen, Themes, UciEngine;
+  SysUtils, Classes, IniFiles, ctypes, SDL3, SDL3_ttf, ChessTypes, ChessGame, Fen, Themes, UciEngine;
 
 const
   CAppTitle = 'Pixel Chess';
@@ -25,9 +25,9 @@ const
   CSheetBlackPiecesY = 38;
   CSheetBoardY = 255;
   CSheetPieceOrder = 'KQRBNP';
-  CEngineDir = 'engines/rodent-ii/';
-  CEngineExe = 'sources/rodentII';
   CEngineMoveTime = 1000;
+  CConfigFile = 'pixelchess.ini';
+  CDefaultTheme = 'lanea';
 
 type
   TBoardArray = array[0..7, 0..7] of char;
@@ -57,6 +57,7 @@ var
   LEngine: TUciEngine = nil;
   LEngineColor: TPieceColor = pcBlack;
   LEngineName: string;
+  LGrabCursor, LGrabbingCursor, LCurrentCursor: PSDL_Cursor;
 
 procedure Fail(const AMessage: string);
 begin
@@ -80,6 +81,49 @@ begin
   if result = nil then
     Fail('SDL_CreateTextureFromSurface');
   SDL_SetTextureScaleMode(result, SDL_SCALEMODE_NEAREST);
+end;
+
+function LoadCursor(const AName: string): PSDL_Cursor;
+var
+  LPath: string;
+  LSurface: PSDL_Surface;
+begin
+  result := nil;
+  LPath := Concat(SDL_GetBasePath, AName, '.png');
+  LSurface := SDL_LoadPNG(PAnsiChar(LPath));
+  if LSurface = nil then
+    exit;
+  result := SDL_CreateColorCursor(LSurface, LSurface^.w div 2, LSurface^.h div 2);
+  SDL_DestroySurface(LSurface);
+end;
+
+procedure LoadCursors;
+begin
+  LGrabCursor := LoadCursor('images/grab');
+  LGrabbingCursor := LoadCursor('images/grabbing');
+  LCurrentCursor := SDL_GetDefaultCursor;
+end;
+
+procedure FreeCursors;
+begin
+  SDL_SetCursor(SDL_GetDefaultCursor);
+  if LGrabCursor <> nil then
+    SDL_DestroyCursor(LGrabCursor);
+  if LGrabbingCursor <> nil then
+    SDL_DestroyCursor(LGrabbingCursor);
+end;
+
+procedure SetWindowIcon;
+var
+  LPath: string;
+  LSurface: PSDL_Surface;
+begin
+  LPath := Concat(SDL_GetBasePath, 'images/icon.png');
+  LSurface := SDL_LoadPNG(PAnsiChar(LPath));
+  if LSurface = nil then
+    exit;
+  SDL_SetWindowIcon(LWindow, LSurface);
+  SDL_DestroySurface(LSurface);
 end;
 
 function MakeRect(const AX, AY, AW, AH: single): TSDL_FRect;
@@ -197,66 +241,20 @@ begin
   LDotSize := 2 * (LSquare div 8);
 end;
 
-function PersonalityFile(const ADir, AName: string): string;
+procedure StartEngine(const APath: string);
 var
-  LSearch: TSearchRec;
-  LFile: string;
+  LPath: string;
 begin
-  result := '';
-  if FindFirst(ADir + 'personalities/*', faDirectory, LSearch) <> 0 then
-    exit;
-  try
-    repeat
-      LFile := Concat('personalities/', LSearch.Name, '/', LowerCase(AName), '.txt');
-      if (LSearch.Name[1] <> '.') and FileExists(ADir + LFile) then
-        exit(LFile);
-    until FindNext(LSearch) <> 0;
-  finally
-    FindClose(LSearch);
-  end;
-end;
-
-function PersonalityNames(const ADir: string): string;
-var
-  LDirs, LFiles: TSearchRec;
-  LNames: TStringList;
-begin
-  LNames := TStringList.Create;
-  LNames.Sorted := TRUE;
-  try
-    if FindFirst(ADir + 'personalities/*', faDirectory, LDirs) = 0 then
-    begin
-      repeat
-        if (LDirs.Name[1] <> '.') and (FindFirst(Concat(ADir, 'personalities/', LDirs.Name, '/*.txt'), faAnyFile, LFiles) = 0) then
-        begin
-          repeat
-            LNames.Add(ChangeFileExt(LFiles.Name, ''));
-          until FindNext(LFiles) <> 0;
-          FindClose(LFiles);
-        end;
-      until FindNext(LDirs) <> 0;
-      FindClose(LDirs);
-    end;
-    LNames.Delimiter := ' ';
-    result := LNames.DelimitedText;
-  finally
-    LNames.Free;
-  end;
-end;
-
-procedure StartEngine(const AName: string);
-var
-  LDir, LFile: string;
-begin
-  LDir := Concat(SDL_GetBasePath, CEngineDir);
-  LFile := PersonalityFile(LDir, AName);
-  if LFile = '' then
+  LPath := APath;
+  if (ExtractFileDrive(LPath) = '') and not (LPath[1] in AllowDirectorySeparators) then
+    LPath := Concat(SDL_GetBasePath, LPath);
+  if not FileExists(LPath) then
   begin
-    WriteLn(ErrOutput, 'Unknown personality: ', AName, '. Available personalities: ', PersonalityNames(LDir), '.');
+    WriteLn(ErrOutput, 'Engine not found: ', LPath);
     Halt(1);
   end;
   try
-    LEngine := TUciEngine.Create(LDir + CEngineExe, LDir);
+    LEngine := TUciEngine.Create(LPath, ExtractFileDir(LPath));
   except
     on E: Exception do
     begin
@@ -264,8 +262,26 @@ begin
       Halt(1);
     end;
   end;
-  LEngine.SetOption('PersonalityFile', LFile);
-  LEngineName := Concat(UpCase(AName[1]), LowerCase(Copy(AName, 2, MaxInt)));
+  LEngineName := ExtractFileName(LPath);
+end;
+
+procedure LoadConfig;
+var
+  LIni: TIniFile;
+  LThemeName, LEnginePath: string;
+begin
+  LIni := TIniFile.Create(Concat(SDL_GetBasePath, CConfigFile));
+  try
+    LThemeName := Trim(LIni.ReadString('Display', 'Theme', CDefaultTheme));
+    LEnginePath := Trim(LIni.ReadString('Engine', 'Path', ''));
+  finally
+    LIni.Free;
+  end;
+  if LThemeName = '' then
+    LThemeName := CDefaultTheme;
+  SetupTheme(LThemeName);
+  if LEnginePath <> '' then
+    StartEngine(LEnginePath);
 end;
 
 procedure SetupPanel;
@@ -741,6 +757,8 @@ begin
     if LMove <> '' then
       PlayMove(LMove);
   end;
+  if LEngine.Name <> '' then
+    LEngineName := LEngine.Name;
   if not LEngine.Thinking and not LPromoting and (LGame.State = gsProgress) and EngineToMove then
     LEngine.Go(LUciMoves, CEngineMoveTime);
 end;
@@ -773,6 +791,26 @@ end;
 function OwnPiece(const c: char): boolean;
 begin
   result := (c <> ' ') and (WhitePiece(c) = (LGame.ActiveColor = pcWhite));
+end;
+
+procedure UpdateCursor;
+var
+  f, r: integer;
+  LCursor: PSDL_Cursor;
+begin
+  LCursor := nil;
+  if LDragging then
+    LCursor := LGrabbingCursor
+  else if not LPromoting and (LGame.State = gsProgress) and not EngineToMove
+    and ScreenToSquare(LMouseX, LMouseY, f, r) and OwnPiece(LPosition[f, r]) then
+    LCursor := LGrabCursor;
+  if LCursor = nil then
+    LCursor := SDL_GetDefaultCursor;
+  if LCursor <> LCurrentCursor then
+  begin
+    SDL_SetCursor(LCursor);
+    LCurrentCursor := LCursor;
+  end;
 end;
 
 procedure MouseDown(const AX, AY: single);
@@ -1052,27 +1090,26 @@ begin
       end;
     end;
     UpdateEngine;
+    UpdateCursor;
     Render;
   end;
 end;
 
 begin
-  if ParamCount > 0 then
-    SetupTheme(ParamStr(1))
-  else
-    SetupTheme('lanea');
-  if ParamCount > 1 then
-    StartEngine(ParamStr(2));
+  LoadConfig;
   SetupPanel;
+  SDL_SetAppMetadata(CAppTitle, CAppVersion, 'pixelchess');
   if not SDL_Init(SDL_INIT_VIDEO) then
     Fail('SDL_Init');
   if not SDL_CreateWindowAndRenderer(CAppTitle + ' ' + CAppVersion, LWidth, LHeight, 0, @LWindow, @LRenderer) then
     Fail('SDL_CreateWindowAndRenderer');
+  SetWindowIcon;
   SDL_SetRenderLogicalPresentation(LRenderer, LWidth, LHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
   if not SDL_SetRenderVSync(LRenderer, 1) then
     SDL_SetRenderVSync(LRenderer, SDL_RENDERER_VSYNC_ADAPTIVE);
   LoadTextures;
   LoadFonts;
+  LoadCursors;
   LMoves := TStringList.Create;
   LSanMoves := TStringList.Create;
   LShownMoves := TStringList.Create;
@@ -1086,6 +1123,7 @@ begin
   LShownMoves.Free;
   LUciMoves.Free;
   LEngine.Free;
+  FreeCursors;
   FreeFonts;
   FreeTextures;
   SDL_DestroyRenderer(LRenderer);

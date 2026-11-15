@@ -26,7 +26,7 @@ type
   end;
 
 const
-  CThemes: array[0..7] of TTheme = (
+  CThemes: array[0..6] of TTheme = (
     (
       Name: 'lanea'; Kind: tkImage; Square: 32; Margin: 32;
       Colors: (
@@ -61,15 +61,6 @@ const
         $202E22FF, $466040FF, $EEEED2FF, $E8ECE0FF, $FF7864FF, $466040FF, $CDD7BEFF, $8CA07DFF,
         $0000006E, $202E22F0, $EEEED2FF, $00000000, $769656FF, $EEEED2FF,
         $F2F2E6FF, $EEEED2FF, $769656FF, $2F3B24FF
-      )
-    ),
-    (
-      Name: 'drummy'; Kind: tkImage; Square: 52; Margin: 16;
-      Colors: (
-        $161012FF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
-        $36282CFF, $6E545AFF, $F0D2CDFF, $F0E8E6FF, $FF7864FF, $6E545AFF, $DCCDCDFF, $A58C91FF,
-        $0000006E, $36282CF0, $F0D2CDFF, $00000000, $D9CCC8FF, $FFF4F0FF,
-        $967876FF, $00000000, $00000000, $F5EEEBFF
       )
     ),
     (

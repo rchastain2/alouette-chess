@@ -15,6 +15,7 @@ type
     FBuffer: string;
     FThinking: boolean;
     FDiscard: integer;
+    FName: string;
     procedure Send(const ALine: string);
     function ReadLine(out ALine: string): boolean;
   public
@@ -26,6 +27,7 @@ type
     procedure Stop;
     function Poll(out AMove: string): boolean;
     property Thinking: boolean read FThinking;
+    property Name: string read FName;
   end;
 
 implementation
@@ -154,6 +156,8 @@ begin
   result := FALSE;
   while ReadLine(LLine) do
   begin
+    if Copy(LLine, 1, 8) = 'id name ' then
+      FName := Trim(Copy(LLine, 9, MaxInt));
     if Copy(LLine, 1, 9) <> 'bestmove ' then
       continue;
     if FDiscard > 0 then
