@@ -7,7 +7,7 @@ uses
 
 const
   CAppTitle = 'Pixel Chess';
-  CAppVersion = '0.1.0';
+  CAppVersion = '0.2.0';
   CPromotionChars = 'qrbn';
   CPieceChars = 'PNBRQKpnbrqk';
   CPanelWidth = 210;
@@ -637,9 +637,15 @@ procedure LoadConfig;
 var
   LIni: TIniFile;
   LPath, LThemeName, LScaleText, LEnginePath, LMoveTimeText, LFen: string;
+  LVersion: integer;
 begin
   OpenLog(Concat(SDL_GetBasePath, CLogFile));
   WriteLog(Concat(CAppTitle, ' ', CAppVersion));
+  WriteLog(Format('Built %s %s with FPC %s for %s-%s', [{$I %DATE%}, {$I %TIME%}, {$I %FPCVERSION%}, {$I %FPCTARGETCPU%}, {$I %FPCTARGETOS%}]));
+  LVersion := SDL_GetVersion;
+  WriteLog(Format('SDL %d.%d.%d', [SDL_VERSIONNUM_MAJOR(LVersion), SDL_VERSIONNUM_MINOR(LVersion), SDL_VERSIONNUM_MICRO(LVersion)]));
+  LVersion := TTF_Version;
+  WriteLog(Format('SDL_ttf %d.%d.%d', [SDL_VERSIONNUM_MAJOR(LVersion), SDL_VERSIONNUM_MINOR(LVersion), SDL_VERSIONNUM_MICRO(LVersion)]));
   LPath := Concat(SDL_GetBasePath, CConfigFile);
   if not FileExists(LPath) then
     CreateDefaultConfig(LPath);
