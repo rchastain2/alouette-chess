@@ -26,6 +26,7 @@ const
   CSheetBoardY = 255;
   CSheetPieceOrder = 'KQRBNP';
   CEngineMoveTime = 1000;
+  CAnimationTime = 200;
   CConfigFile = 'pixelchess.ini';
   CLogFile = 'pixelchess.log';
   CDefaultTheme = 'bftc';
@@ -79,6 +80,11 @@ var
   LEngineError: string = '';
   LNotice: string = '';
   LNoticeUntil: UInt64 = 0;
+  LAnimating: boolean = FALSE;
+  LAnimFromFile, LAnimFromRank, LAnimToFile, LAnimToRank: integer;
+  LAnimPiece, LAnimCaptured: char;
+  LAnimStart: UInt64;
+  LAnimSound: TSound;
 
 procedure Report(const AText: string);
 begin
@@ -1023,6 +1029,7 @@ var
   LSan: string;
   i: integer;
   LCapture: boolean;
+  LSound: TSound;
 begin
   LCapture := LGame.IsCapture(AMove) or (LGame.IsEnPassant(AMove) <> '');
   LShownMoves.Append(ShownMove(AMove));
@@ -1051,18 +1058,46 @@ begin
   case LGame.State of
     gsCheckmate:
       if (LEngine <> nil) and (LGame.ActiveColor <> LEngineColor) then
-        PlaySound(sndDefeat)
+        LSound := sndDefeat
       else
-        PlaySound(sndVictory);
+        LSound := sndVictory;
     gsStalemate, gsDraw:
-      PlaySound(sndDraw);
+      LSound := sndDraw;
   else
     if LGame.Check then
-      PlaySound(sndCheck)
+      LSound := sndCheck
     else if LCapture then
-      PlaySound(sndCapture)
+      LSound := sndCapture
     else
-      PlaySound(sndMove);
+      LSound := sndMove;
+  end;
+  if LAnimating then
+    LAnimSound := LSound
+  else
+    PlaySound(LSound);
+end;
+
+procedure StartAnimation(const AMove: string);
+var
+  LShown: string;
+begin
+  LShown := ShownMove(AMove);
+  LAnimFromFile := Ord(LShown[1]) - Ord('a');
+  LAnimFromRank := Ord(LShown[2]) - Ord('1');
+  LAnimToFile := Ord(LShown[3]) - Ord('a');
+  LAnimToRank := Ord(LShown[4]) - Ord('1');
+  LAnimPiece := LPosition[LAnimFromFile, LAnimFromRank];
+  LAnimCaptured := LPosition[LAnimToFile, LAnimToRank];
+  LAnimStart := SDL_GetTicks;
+  LAnimating := TRUE;
+end;
+
+procedure UpdateAnimation;
+begin
+  if LAnimating and (SDL_GetTicks - LAnimStart >= CAnimationTime) then
+  begin
+    LAnimating := FALSE;
+    PlaySound(LAnimSound);
   end;
 end;
 
@@ -1177,6 +1212,7 @@ begin
       EngineFailed('illegal move ' + LBest);
       exit;
     end;
+    StartAnimation(LMove);
     PlayMove(LMove);
   end;
   if LEngine.Name <> '' then
@@ -1392,12 +1428,16 @@ end;
 procedure DrawBoard;
 var
   LLast: string;
-  f, r, LCol, LRow, x, y: integer;
+  f, r, LCol, LRow, x, y, i: integer;
+  t: single;
 begin
   DrawBoardImage;
-  if LShownMoves.Count > 0 then
+  i := LShownMoves.Count - 1;
+  if LAnimating then
+    Dec(i);
+  if i >= 0 then
   begin
-    LLast := LShownMoves[LShownMoves.Count - 1];
+    LLast := LShownMoves[i];
     DrawSquareHighlight(Copy(LLast, 1, 2), Color(ciLastFrom));
     DrawSquareHighlight(Copy(LLast, 3, 2), Color(ciLastTo));
   end;
@@ -1436,9 +1476,24 @@ begin
       end;
       if LDragging and (f = LSelFile) and (r = LSelRank) then
         continue;
+      if LAnimating and (f = LAnimToFile) and (r = LAnimToRank) then
+      begin
+        if LAnimCaptured <> ' ' then
+          DrawPiece(LAnimCaptured, ScreenX(f), ScreenY(r));
+        continue;
+      end;
       if LPosition[f, r] <> ' ' then
         DrawPiece(LPosition[f, r], ScreenX(f), ScreenY(r));
     end;
+  if LAnimating then
+  begin
+    t := (SDL_GetTicks - LAnimStart) / CAnimationTime;
+    if t > 1 then
+      t := 1;
+    DrawPiece(LAnimPiece,
+      Round(ScreenX(LAnimFromFile) + (ScreenX(LAnimToFile) - ScreenX(LAnimFromFile)) * t),
+      Round(ScreenY(LAnimFromRank) + (ScreenY(LAnimToRank) - ScreenY(LAnimFromRank)) * t));
+  end;
   if LDragging then
     DrawPiece(LPosition[LSelFile, LSelRank], Round(LMouseX - LGrabX), Round(LMouseY - LGrabY));
 end;
@@ -1598,6 +1653,9 @@ end;
 procedure HandleEvent(var e: TSDL_Event; var AQuit: boolean);
 begin
   SDL_ConvertEventToRenderCoordinates(LRenderer, @e);
+  if LAnimating and ((e.type_ = SDL_EVENT_KEY_DOWN) or (e.type_ = SDL_EVENT_MOUSE_BUTTON_DOWN)
+    or (e.type_ = SDL_EVENT_MOUSE_BUTTON_UP)) then
+    exit;
   case e.type_ of
     SDL_EVENT_QUIT:
       AQuit := TRUE;
@@ -1647,6 +1705,8 @@ function WaitTimeout: cint32;
 var
   LNow: UInt64;
 begin
+  if LAnimating then
+    exit(10);
   result := -1;
   if LEngine <> nil then
   begin
@@ -1672,6 +1732,7 @@ begin
         HandleEvent(e, LQuit);
       until not SDL_PollEvent(@e);
     UpdateEngine;
+    UpdateAnimation;
     UpdateCursor;
     Render;
   end;
