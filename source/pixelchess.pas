@@ -31,6 +31,7 @@ const
   CLogFile = 'pixelchess.log';
   CDefaultTheme = 'bftc';
   CDefaultScale = 1;
+  CDefaultEngine = 'engines/alouette/alouette'{$IFDEF WINDOWS} + '.exe'{$ENDIF};
 
 type
   TBoardArray = array[0..7, 0..7] of char;
@@ -388,7 +389,7 @@ begin
     LList.Add('scale=' + IntToStr(CDefaultScale));
     LList.Add('');
     LList.Add('[engine]');
-    LList.Add('path=');
+    LList.Add('path=' + CDefaultEngine);
     LList.Add('movetime=' + IntToStr(CEngineMoveTime));
     LList.Add('');
     LList.Add('[sound]');

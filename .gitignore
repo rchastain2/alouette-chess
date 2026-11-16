@@ -3,3 +3,8 @@
 *.o
 *.ppu
 /pixelchess.log
+/engines/alouette/alouette
+/engines/alouette/alouette.exe
+/engines/alouette/alouette.cfg
+/engines/alouette/*.log
+/engines/alouette/source/temp/

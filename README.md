@@ -1,6 +1,6 @@
 # Pixel Chess
 
-A pixel-art chess game written in Free Pascal with SDL3. Play against a friend on the same computer, or against any UCI chess engine.
+A pixel-art chess game written in Free Pascal with SDL3. Play against a friend on the same computer, or against a UCI chess engine.
 
 ![Screenshot](screenshots/020-lanea.png)
 
@@ -9,7 +9,7 @@ A pixel-art chess game written in Free Pascal with SDL3. Play against a friend o
 - Full chess rules: castling, en passant, promotion, checkmate, stalemate, fifty-move rule, repetition and insufficient material
 - Move list in standard algebraic notation
 - Nine graphical themes
-- Optional computer opponent: any engine supporting the UCI protocol
+- Computer opponent: the bundled Alouette engine, or any engine supporting the UCI protocol
 
 ## Requirements
 
@@ -40,7 +40,7 @@ theme=bftc
 scale=1
 
 [engine]
-path=
+path=engines/alouette/alouette
 movetime=1000
 
 [sound]
@@ -52,7 +52,7 @@ uci=0
 
 - `theme`: one of `bftc` (default), `deepbasic`, `fritz`, `lanea`, `lucas`, `m484`, `owl`, `smirf`, `warlord`
 - `scale`: the window size factor, `1` (default) for the native size. With `2`, every pixel is drawn as a 2×2 square. If the window does not fit on the screen, the largest scale that fits is used instead.
-- `path`: the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. Leave it empty to have both sides played by humans.
+- `path`: the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. By default, the bundled [Alouette](engines/alouette/README.md) engine, built by `make`. Leave it empty to have both sides played by humans.
 - `movetime`: the engine's thinking time per move, in milliseconds (default `1000`).
 - `enabled`: `1` (default) to play sounds, `0` to start muted.
 - `uci`: `1` to record the dialogue with the engine in the log file, `0` (default) otherwise.
@@ -89,6 +89,7 @@ On the command line, a relative engine path is resolved from the current directo
 
 ## Credits
 
+- Engine: [Alouette](engines/alouette/README.md) by Roland Chastain (0BSD)
 - Fonts: Alagard by Hewett Tsoi, Minecraftia
 - Themes:
   - `bftc`: pieces from *Bobby Fischer Teaches Chess*
