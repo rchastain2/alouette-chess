@@ -19,6 +19,7 @@ type
 
   TTheme = record
     Name: string;
+    Title: string;
     Kind: TThemeKind;
     Square: integer;
     Margin: integer;
@@ -28,7 +29,7 @@ type
 const
   CThemes: array[0..8] of TTheme = (
     (
-      Name: 'bftc'; Kind: tkDrawn; Square: 38; Margin: 16;
+      Name: 'bftc'; Title: 'BFTC'; Kind: tkDrawn; Square: 38; Margin: 16;
       Colors: (
         $101610FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $1E5A28B4, $1E6E28E6, $1E6E28A0,
         $202E22FF, $466040FF, $EEEED2FF, $E8ECE0FF, $FF7864FF, $466040FF, $CDD7BEFF, $8CA07DFF,
@@ -37,7 +38,7 @@ const
       )
     ),
     (
-      Name: 'deepbasic'; Kind: tkDrawn; Square: 40; Margin: 16;
+      Name: 'deepbasic'; Title: 'Deep Basic'; Kind: tkDrawn; Square: 40; Margin: 16;
       Colors: (
         $101610FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $1E5A28B4, $1E6E28E6, $1E6E28A0,
         $202E22FF, $466040FF, $EEEED2FF, $E8ECE0FF, $FF7864FF, $466040FF, $CDD7BEFF, $8CA07DFF,
@@ -46,7 +47,7 @@ const
       )
     ),
     (
-      Name: 'fritz'; Kind: tkImage; Square: 40; Margin: 16;
+      Name: 'fritz'; Title: 'Fritz'; Kind: tkImage; Square: 40; Margin: 16;
       Colors: (
         $141414FF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $242428FF, $505058FF, $F0F0F0FF, $E6E6E6FF, $FF7864FF, $505058FF, $D2D2D2FF, $8C8C96FF,
@@ -55,7 +56,7 @@ const
       )
     ),
     (
-      Name: 'lanea'; Kind: tkImage; Square: 32; Margin: 32;
+      Name: 'lanea'; Title: 'Lanea'; Kind: tkImage; Square: 32; Margin: 32;
       Colors: (
         $14100EFF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $2E241EFF, $5A483AFF, $EBC878FF, $E6E6DCFF, $FF7864FF, $5A483AFF, $D2C8B4FF, $968C78FF,
@@ -64,7 +65,7 @@ const
       )
     ),
     (
-      Name: 'lucas'; Kind: tkImage; Square: 32; Margin: 16;
+      Name: 'lucas'; Title: 'Lucas'; Kind: tkImage; Square: 32; Margin: 16;
       Colors: (
         $121418FF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $22262EFF, $4A5262FF, $C8D7EBFF, $E4E8EEFF, $FF7864FF, $4A5262FF, $C8CED8FF, $8890A0FF,
@@ -73,7 +74,7 @@ const
       )
     ),
     (
-      Name: 'm484'; Kind: tkSheet; Square: 28; Margin: 12;
+      Name: 'm484'; Title: 'M484'; Kind: tkSheet; Square: 28; Margin: 12;
       Colors: (
         $281A14FF, $FFDC5A5A, $FFDC5A78, $E6282882, $5AAAFF6E, $3C8C46BE, $3CA046E6, $3CA046A0,
         $4A2E24FF, $4A2E24FF, $EAC9AEFF, $F0E1D2FF, $FF826EFF, $8C5845FF, $D6BEAAFF, $BE9682FF,
@@ -82,7 +83,7 @@ const
       )
     ),
     (
-      Name: 'owl'; Kind: tkDrawn; Square: 40; Margin: 16;
+      Name: 'owl'; Title: 'Owl'; Kind: tkDrawn; Square: 40; Margin: 16;
       Colors: (
         $101610FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $1E5A28B4, $1E6E28E6, $1E6E28A0,
         $202E22FF, $466040FF, $EEEED2FF, $E8ECE0FF, $FF7864FF, $466040FF, $CDD7BEFF, $8CA07DFF,
@@ -91,7 +92,7 @@ const
       )
     ),
     (
-      Name: 'smirf'; Kind: tkDrawn; Square: 36; Margin: 16;
+      Name: 'smirf'; Title: 'Smirf'; Kind: tkDrawn; Square: 36; Margin: 16;
       Colors: (
         $14100EFF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $3E2C22FF, $6E523EFF, $F0D9B5FF, $EFE3CCFF, $FF7864FF, $6E523EFF, $DCC8AFFF, $AA9178FF,
@@ -100,7 +101,7 @@ const
       )
     ),
     (
-      Name: 'warlord'; Kind: tkImage; Square: 48; Margin: 16;
+      Name: 'warlord'; Title: 'Warlord'; Kind: tkImage; Square: 48; Margin: 16;
       Colors: (
         $160E0EFF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $2E1C1CFF, $6A3C3CFF, $EBBE96FF, $EEE4E0FF, $FF7864FF, $6A3C3CFF, $DCC8C0FF, $A08880FF,

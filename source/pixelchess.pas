@@ -3,7 +3,7 @@ program pixelchess;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, IniFiles, ctypes, SDL3, SDL3_ttf, ChessTypes, ChessGame, Fen, Themes, UciEngine;
+  SysUtils, Classes, IniFiles, ctypes, SDL3, SDL3_ttf, ChessTypes, ChessGame, Fen, Themes, UciEngine, PixelLog;
 
 const
   CAppTitle = 'Pixel Chess';
@@ -27,6 +27,7 @@ const
   CSheetPieceOrder = 'KQRBNP';
   CEngineMoveTime = 1000;
   CConfigFile = 'pixelchess.ini';
+  CLogFile = 'pixelchess.log';
   CDefaultTheme = 'bftc';
   CDefaultScale = 1;
 
@@ -79,9 +80,15 @@ var
   LNotice: string = '';
   LNoticeUntil: UInt64 = 0;
 
+procedure Report(const AText: string);
+begin
+  WriteLn(ErrOutput, AText);
+  WriteLog(AText);
+end;
+
 procedure Fail(const AMessage: string);
 begin
-  WriteLn(ErrOutput, AMessage, ': ', SDL_GetError);
+  Report(Concat(AMessage, ': ', SDL_GetError));
   Halt(1);
 end;
 
@@ -328,7 +335,7 @@ procedure SetupTheme(const AName: string);
 begin
   if not FindTheme(AName, LTheme) then
   begin
-    WriteLn(ErrOutput, 'Unknown theme: ', AName, '. Available themes: ', ThemeNames, '.');
+    Report(Concat('Unknown theme: ', AName, '. Available themes: ', ThemeNames, '.'));
     Halt(1);
   end;
   LSquare := LTheme.Square;
@@ -348,15 +355,16 @@ begin
     LPath := Concat(SDL_GetBasePath, LPath);
   if not FileExists(LPath) then
   begin
-    WriteLn(ErrOutput, 'Engine not found: ', LPath);
+    Report('Engine not found: ' + LPath);
     Halt(1);
   end;
+  WriteLog('Starting engine: ' + LPath);
   try
     LEngine := TUciEngine.Create(LPath, ExtractFileDir(LPath));
   except
     on E: Exception do
     begin
-      WriteLn(ErrOutput, E.Message);
+      Report(E.Message);
       Halt(1);
     end;
   end;
@@ -379,11 +387,14 @@ begin
     LList.Add('');
     LList.Add('[sound]');
     LList.Add('enabled=1');
+    LList.Add('');
+    LList.Add('[log]');
+    LList.Add('uci=0');
     try
       LList.SaveToFile(APath);
     except
       on E: Exception do
-        WriteLn(ErrOutput, E.Message);
+        Report(E.Message);
     end;
   finally
     LList.Free;
@@ -406,7 +417,7 @@ end;
 
 procedure UsageError(const AMessage: string);
 begin
-  WriteLn(ErrOutput, AMessage);
+  Report(AMessage);
   WriteLn(ErrOutput, CUsage);
   Halt(1);
 end;
@@ -513,7 +524,7 @@ begin
   LFen := AFen;
   if not CheckFen(LFen) then
   begin
-    WriteLn(ErrOutput, 'Invalid FEN: ', AFen);
+    Report('Invalid FEN: ' + AFen);
     Halt(1);
   end;
   with TChessGame.Create(LFen) do
@@ -611,7 +622,7 @@ begin
     LMax := 1;
   if LScale > LMax then
   begin
-    WriteLn(ErrOutput, Format('Warning: scale %d is too large for this screen (%dx%d), using %d with theme %s.', [LScale, LRect.w, LRect.h, LMax, LTheme.Name]));
+    Report(Format('Warning: scale %d is too large for this screen (%dx%d), using %d with theme %s.', [LScale, LRect.w, LRect.h, LMax, LTheme.Name]));
     LScale := LMax;
   end;
 end;
@@ -621,6 +632,8 @@ var
   LIni: TIniFile;
   LPath, LThemeName, LScaleText, LEnginePath, LMoveTimeText, LFen: string;
 begin
+  OpenLog(Concat(SDL_GetBasePath, CLogFile));
+  WriteLog(Concat(CAppTitle, ' ', CAppVersion));
   LPath := Concat(SDL_GetBasePath, CConfigFile);
   if not FileExists(LPath) then
     CreateDefaultConfig(LPath);
@@ -631,6 +644,7 @@ begin
     LEnginePath := Trim(LIni.ReadString('engine', 'path', ''));
     LMoveTimeText := Trim(LIni.ReadString('engine', 'movetime', IntToStr(CEngineMoveTime)));
     LSoundEnabled := LIni.ReadBool('sound', 'enabled', TRUE);
+    LogUci := LIni.ReadBool('log', 'uci', FALSE);
   finally
     LIni.Free;
   end;
@@ -640,14 +654,14 @@ begin
     LScale := CDefaultScale
   else if not TryStrToInt(LScaleText, LScale) or (LScale < 1) then
   begin
-    WriteLn(ErrOutput, 'Invalid scale: ', LScaleText, '. Expected a positive number.');
+    Report(Concat('Invalid scale: ', LScaleText, '. Expected a positive number.'));
     Halt(1);
   end;
   if LMoveTimeText = '' then
     LMoveTime := CEngineMoveTime
   else if not TryStrToInt(LMoveTimeText, LMoveTime) or (LMoveTime <= 0) then
   begin
-    WriteLn(ErrOutput, 'Invalid move time: ', LMoveTimeText, '. Expected a positive number of milliseconds.');
+    Report(Concat('Invalid move time: ', LMoveTimeText, '. Expected a positive number of milliseconds.'));
     Halt(1);
   end;
   if LFen <> '' then
@@ -657,6 +671,7 @@ begin
   SetupTheme(LThemeName);
   InitVideo;
   CheckScale;
+  WriteLog(Format('Theme %s, scale %d', [LTheme.Name, LScale]));
   if LEnginePath <> '' then
     StartEngine(LEnginePath);
   LHasEngineLine := LEngine <> nil;
@@ -667,9 +682,9 @@ var
   LHelpLines: integer;
 begin
   if LHasEngineLine then
-    LHelpLines := 7
+    LHelpLines := 8
   else
-    LHelpLines := 5;
+    LHelpLines := 6;
   LHelpSepY := LHeight - 12 - LHelpLines * CHelpStep;
   LHelpY := LHelpSepY + 6;
   LMaxLines := (LHelpSepY - 6 - CListY) div CLineHeight;
@@ -1143,6 +1158,7 @@ end;
 
 procedure EngineFailed(const AReason: string);
 begin
+  WriteLog('Engine error: ' + AReason);
   LEngineError := AReason;
   FreeAndNil(LEngine);
 end;
@@ -1544,6 +1560,7 @@ begin
   end;
   DrawHelpLine(i + 2, '<-', 'take back');
   DrawHelpLine(i + 4, 'C/P', 'copy PGN/FEN');
+  DrawHelpLine(i + 5, 'Esc', 'quit');
   if LSoundEnabled then
     DrawHelpLine(i + 3, 'M', 'mute')
   else
@@ -1660,10 +1677,20 @@ begin
   end;
 end;
 
+function WindowTitle: string;
+const
+  CEnDash = #$E2#$80#$93;
+  CTimes = #$C3#$97;
+begin
+  result := Concat(CAppTitle, ' ', CAppVersion, ' ', CEnDash, ' ', LTheme.Title);
+  if LScale > 1 then
+    result := Concat(result, ' ', CTimes, IntToStr(LScale));
+end;
+
 begin
   LoadConfig;
   SetupPanel;
-  if not SDL_CreateWindowAndRenderer(CAppTitle + ' ' + CAppVersion, LScale * LWidth, LScale * LHeight, 0, @LWindow, @LRenderer) then
+  if not SDL_CreateWindowAndRenderer(PAnsiChar(WindowTitle), LScale * LWidth, LScale * LHeight, 0, @LWindow, @LRenderer) then
     Fail('SDL_CreateWindowAndRenderer');
   SetWindowIcon;
   SDL_SetRenderLogicalPresentation(LRenderer, LWidth, LHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
@@ -1693,4 +1720,5 @@ begin
   SDL_DestroyRenderer(LRenderer);
   SDL_DestroyWindow(LWindow);
   SDL_Quit;
+  WriteLog('Exit');
 end.

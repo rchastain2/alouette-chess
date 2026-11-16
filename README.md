@@ -45,6 +45,9 @@ movetime=1000
 
 [sound]
 enabled=1
+
+[log]
+uci=0
 ```
 
 - `theme`: one of `bftc` (default), `deepbasic`, `fritz`, `lanea`, `lucas`, `m484`, `owl`, `smirf`, `warlord`
@@ -52,8 +55,11 @@ enabled=1
 - `path`: the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. Leave it empty to have both sides played by humans.
 - `movetime`: the engine's thinking time per move, in milliseconds (default `1000`).
 - `enabled`: `1` (default) to play sounds, `0` to start muted.
+- `uci`: `1` to record the dialogue with the engine in the log file, `0` (default) otherwise.
 
 An unknown theme name prints the list of valid ones. If the file is missing, it is created with the default values: theme `bftc`, scale 1, no computer opponent, sound on.
+
+Errors and warnings are written to `pixelchess.log`, next to the executable. This file is recreated at each launch.
 
 These settings can also be given on the command line, which overrides `pixelchess.ini` for that session without modifying it:
 

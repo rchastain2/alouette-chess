@@ -5,7 +5,7 @@ unit UciEngine;
 interface
 
 uses
-  {$IFDEF UNIX}BaseUnix,{$ENDIF} SysUtils, Classes, ctypes, SDL3;
+  {$IFDEF UNIX}BaseUnix,{$ENDIF} SysUtils, Classes, ctypes, SDL3, PixelLog;
 
 type
   TUciEngine = class
@@ -88,6 +88,8 @@ procedure TUciEngine.Send(const ALine: string);
 var
   LLine: string;
 begin
+  if LogUci then
+    WriteLog('> ' + ALine);
   LLine := ALine + #10;
   SDL_WriteIO(FInput, PAnsiChar(LLine), Length(LLine));
   SDL_FlushIO(FInput);
@@ -114,6 +116,8 @@ begin
     exit;
   ALine := TrimRight(Copy(FBuffer, 1, LPos - 1));
   Delete(FBuffer, 1, LPos);
+  if LogUci then
+    WriteLog('< ' + ALine);
 end;
 
 procedure TUciEngine.SetOption(const AName, AValue: string);
