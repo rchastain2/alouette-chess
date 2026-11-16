@@ -30,6 +30,7 @@ type
       FList: TMoveList;
       FHistory: TStringList;
       FState: TGameState;
+      FDrawReason: TDrawReason;
     public
       constructor Create(const AFenRecord: string);
       destructor Destroy; override;
@@ -52,6 +53,7 @@ type
       function RandomMove: string;
       function LegalMoves: string;
       property State: TGameState read FState;
+      property DrawReason: TDrawReason read FDrawReason;
   end;
 
 implementation
@@ -63,7 +65,7 @@ begin
   if FNext = nil then FNext := TChessPosition.Create else FNext.Create;
   if FList = nil then FList := TMoveList.Create else FList.Clear;
   if FHistory = nil then FHistory := TStringList.Create else FHistory.Clear;
-  FHistory.Append(AFenRecord);
+  FHistory.Append(GetFen);
   Think;
 end;
 
@@ -97,6 +99,7 @@ begin
       FList.Append(FCurrent.List.GetMove(i));
   end;
   
+  FDrawReason := drNone;
   if FList.Count = 0 then
   begin
     if FCurrent.Check then
@@ -104,10 +107,18 @@ begin
     else
       FState := gsStalemate;
   end else
-    if (FCurrent.Data.FHalfMoves >= 100) or Repetition or InsufficientMaterial then
-      FState := gsDraw
+  begin
+    if InsufficientMaterial then
+      FDrawReason := drMaterial
+    else if Repetition then
+      FDrawReason := drRepetition
+    else if FCurrent.Data.FHalfMoves >= 100 then
+      FDrawReason := drFiftyMoves;
+    if FDrawReason = drNone then
+      FState := gsProgress
     else
-      FState := gsProgress;
+      FState := gsDraw;
+  end;
 end;
 
 function TChessGame.IsLegal(const AMove: string): boolean;
@@ -234,22 +245,24 @@ begin
 end;
 
 function TChessGame.Repetition: boolean;
-  function SamePiecePlacement(const AFenRecord1, AFenRecord2: string): boolean;
+  function PositionKey(const AFenRecord: string): string;
   var
-    l: integer;
+    LFields: TStringArray;
   begin
-    l := Pos(' ', AFenRecord1) - 1;
-    result := StrLComp(pchar(AFenRecord1), pchar(AFenRecord2), l) = 0;
+    LFields := AFenRecord.Split([' ']);
+    result := string.Join(' ', LFields, 0, 4);
   end;
 var
   i, n: integer;
+  LKey: string;
 begin
   result := FALSE;
+  LKey := PositionKey(FHistory[FHistory.Count - 1]);
   i := FHistory.Count - 2;
   n := 1;
   while (i >= 0) and not result do
   begin
-    if SamePiecePlacement(FHistory[i], FHistory[FHistory.Count - 1]) then
+    if PositionKey(FHistory[i]) = LKey then
     begin
       Inc(n);
       if n = 3 then

@@ -8,7 +8,7 @@ Current version: 0.1.0
 
 - Full chess rules: castling, en passant, promotion, checkmate, stalemate, fifty-move rule, repetition and insufficient material
 - Move list in standard algebraic notation
-- Seven graphical themes
+- Nine graphical themes
 - Optional computer opponent: any engine supporting the UCI protocol
 
 ## Requirements
@@ -32,11 +32,12 @@ make
 ./pixelchess
 ```
 
-The theme and the computer opponent are set in `pixelchess.ini`, next to the executable:
+The theme, the window size and the computer opponent are set in `pixelchess.ini`, next to the executable:
 
 ```ini
 [display]
 theme=bftc
+scale=1
 
 [engine]
 path=
@@ -47,17 +48,18 @@ enabled=1
 ```
 
 - `theme`: one of `bftc` (default), `deepbasic`, `fritz`, `lanea`, `lucas`, `m484`, `owl`, `smirf`, `warlord`
+- `scale`: the window size factor, `1` (default) for the native size. With `2`, every pixel is drawn as a 2×2 square. If the window does not fit on the screen, the largest scale that fits is used instead.
 - `path`: the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. Leave it empty to have both sides played by humans.
 - `movetime`: the engine's thinking time per move, in milliseconds (default `1000`).
 - `enabled`: `1` (default) to play sounds, `0` to start muted.
 
-An unknown theme name prints the list of valid ones. If the file is missing, it is created with the default values: theme `bftc`, no computer opponent, sound on.
+An unknown theme name prints the list of valid ones. If the file is missing, it is created with the default values: theme `bftc`, scale 1, no computer opponent, sound on.
 
 These settings can also be given on the command line, which overrides `pixelchess.ini` for that session without modifying it:
 
 ```sh
 ./pixelchess --theme=fritz
-./pixelchess -t lucas
+./pixelchess -t lucas -s 2
 ./pixelchess --engine=/usr/games/stockfish --movetime=3000
 ./pixelchess -e ../engines/ct800 -m 500 -t m484
 ./pixelchess --engine=

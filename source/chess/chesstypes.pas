@@ -38,6 +38,7 @@ type
   end;
   {** État du jeu. }
   TGameState = (gsProgress, gsCheckmate, gsStalemate, gsDraw);
+  TDrawReason = (drNone, drFiftyMoves, drRepetition, drMaterial);
   {** Type de coup. }
   TMoveInfo = (miCapture, miH_Castling, miA_Castling, miKnight, miBishop, miRook, miQueen);
   TMoveInfoSet = set of TMoveInfo;

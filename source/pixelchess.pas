@@ -28,6 +28,7 @@ const
   CEngineMoveTime = 1000;
   CConfigFile = 'pixelchess.ini';
   CDefaultTheme = 'bftc';
+  CDefaultScale = 1;
 
 type
   TBoardArray = array[0..7, 0..7] of char;
@@ -48,6 +49,7 @@ var
   LSelected: boolean = FALSE;
   LSelFile, LSelRank: integer;
   LDragging: boolean = FALSE;
+  LReselected: boolean = FALSE;
   LMouseX, LMouseY, LGrabX, LGrabY: single;
   LPromoting: boolean = FALSE;
   LPromotionMove: string;
@@ -71,6 +73,7 @@ var
   LFirstMove: integer = 1;
   LBlackFirst: boolean = FALSE;
   LMoveTime: integer = CEngineMoveTime;
+  LScale: integer = CDefaultScale;
   LHasEngineLine: boolean = FALSE;
   LEngineError: string = '';
   LNotice: string = '';
@@ -309,6 +312,18 @@ begin
   result := ToColor(LTheme.Colors[AId]);
 end;
 
+function MixColors(const AId1, AId2: TColorId): TSDL_Color;
+var
+  LColor1, LColor2: TSDL_Color;
+begin
+  LColor1 := Color(AId1);
+  LColor2 := Color(AId2);
+  result.r := (LColor1.r + LColor2.r) div 2;
+  result.g := (LColor1.g + LColor2.g) div 2;
+  result.b := (LColor1.b + LColor2.b) div 2;
+  result.a := 255;
+end;
+
 procedure SetupTheme(const AName: string);
 begin
   if not FindTheme(AName, LTheme) then
@@ -356,6 +371,7 @@ begin
   try
     LList.Add('[display]');
     LList.Add('theme=' + CDefaultTheme);
+    LList.Add('scale=' + IntToStr(CDefaultScale));
     LList.Add('');
     LList.Add('[engine]');
     LList.Add('path=');
@@ -375,12 +391,13 @@ begin
 end;
 
 const
-  CUsage = 'Usage: pixelchess [-t NAME] [-e PATH] [-m MS] [-f FEN] [-h]';
+  CUsage = 'Usage: pixelchess [-t NAME] [-s N] [-e PATH] [-m MS] [-f FEN] [-h]';
 
 procedure PrintUsage;
 begin
   WriteLn(CUsage);
   WriteLn('  --theme=NAME, -t NAME    graphical theme: ', ThemeNames);
+  WriteLn('  --scale=N, -s N          window scale factor, limited by the screen size');
   WriteLn('  --engine=PATH, -e PATH   UCI engine; an empty path disables the engine');
   WriteLn('  --movetime=MS, -m MS     engine thinking time per move, in milliseconds');
   WriteLn('  --fen=FEN, -f FEN        start position');
@@ -397,7 +414,8 @@ end;
 function CheckFen(var AFen: string): boolean;
 var
   LFields, LRanks: TStringArray;
-  LWhiteKings, LBlackKings, LCount, LValue, i, j: integer;
+  LRows: array[0..7] of string;
+  LWhiteKings, LBlackKings, LCount, LValue, i, j, f: integer;
   c: char;
 begin
   result := FALSE;
@@ -418,14 +436,19 @@ begin
   for i := 0 to 7 do
   begin
     LCount := 0;
+    LRows[i] := '';
     for j := 1 to Length(LRanks[i]) do
     begin
       c := LRanks[i][j];
       if c in ['1'..'8'] then
-        Inc(LCount, Ord(c) - Ord('0'))
+      begin
+        Inc(LCount, Ord(c) - Ord('0'));
+        LRows[i] := LRows[i] + StringOfChar(' ', Ord(c) - Ord('0'));
+      end
       else if Pos(c, CPieceChars) > 0 then
       begin
         Inc(LCount);
+        LRows[i] := LRows[i] + c;
         if c = 'K' then
           Inc(LWhiteKings)
         else if c = 'k' then
@@ -446,8 +469,19 @@ begin
     for j := 1 to Length(LFields[2]) do
       if not (LFields[2][j] in ['K', 'Q', 'k', 'q']) then
         exit;
-  if (LFields[3] <> '-') and not ((Length(LFields[3]) = 2) and (LFields[3][1] in ['a'..'h']) and (LFields[3][2] in ['3', '6'])) then
-    exit;
+  if LFields[3] <> '-' then
+  begin
+    if (Length(LFields[3]) <> 2) or not (LFields[3][1] in ['a'..'h']) then
+      exit;
+    f := Ord(LFields[3][1]) - Ord('a') + 1;
+    if LFields[1] = 'w' then
+    begin
+      if (LFields[3][2] <> '6') or (LRows[3][f] <> 'p') or (LRows[2][f] <> ' ') or (LRows[1][f] <> ' ') then
+        exit;
+    end
+    else if (LFields[3][2] <> '3') or (LRows[4][f] <> 'P') or (LRows[5][f] <> ' ') or (LRows[6][f] <> ' ') then
+      exit;
+  end;
   if not TryStrToInt(LFields[4], LValue) or (LValue < 0) then
     exit;
   if not TryStrToInt(LFields[5], LValue) or (LValue < 1) then
@@ -503,7 +537,7 @@ begin
     result := LStartFen;
 end;
 
-procedure ParseCommandLine(var AThemeName, AEnginePath, AMoveTime, AFen: string);
+procedure ParseCommandLine(var AThemeName, AScale, AEnginePath, AMoveTime, AFen: string);
 var
   i: integer;
   LArg: string;
@@ -538,6 +572,8 @@ begin
     end
     else if TryOption('--theme', '-t', LValue) then
       AThemeName := LValue
+    else if TryOption('--scale', '-s', LValue) then
+      AScale := LValue
     else if TryOption('--engine', '-e', LValue) then
     begin
       if LValue <> '' then
@@ -554,10 +590,36 @@ begin
   end;
 end;
 
+procedure InitVideo;
+begin
+  SDL_SetAppMetadata(CAppTitle, CAppVersion, 'pixelchess');
+  if not SDL_Init(SDL_INIT_VIDEO) then
+    Fail('SDL_Init');
+end;
+
+procedure CheckScale;
+var
+  LRect: TSDL_Rect;
+  LMax: integer;
+begin
+  if not SDL_GetDisplayUsableBounds(SDL_GetPrimaryDisplay, @LRect) then
+    exit;
+  LMax := LRect.w div LWidth;
+  if LRect.h div LHeight < LMax then
+    LMax := LRect.h div LHeight;
+  if LMax < 1 then
+    LMax := 1;
+  if LScale > LMax then
+  begin
+    WriteLn(ErrOutput, Format('Warning: scale %d is too large for this screen (%dx%d), using %d with theme %s.', [LScale, LRect.w, LRect.h, LMax, LTheme.Name]));
+    LScale := LMax;
+  end;
+end;
+
 procedure LoadConfig;
 var
   LIni: TIniFile;
-  LPath, LThemeName, LEnginePath, LMoveTimeText, LFen: string;
+  LPath, LThemeName, LScaleText, LEnginePath, LMoveTimeText, LFen: string;
 begin
   LPath := Concat(SDL_GetBasePath, CConfigFile);
   if not FileExists(LPath) then
@@ -565,6 +627,7 @@ begin
   LIni := TIniFile.Create(LPath);
   try
     LThemeName := Trim(LIni.ReadString('display', 'theme', CDefaultTheme));
+    LScaleText := Trim(LIni.ReadString('display', 'scale', IntToStr(CDefaultScale)));
     LEnginePath := Trim(LIni.ReadString('engine', 'path', ''));
     LMoveTimeText := Trim(LIni.ReadString('engine', 'movetime', IntToStr(CEngineMoveTime)));
     LSoundEnabled := LIni.ReadBool('sound', 'enabled', TRUE);
@@ -572,7 +635,14 @@ begin
     LIni.Free;
   end;
   LFen := '';
-  ParseCommandLine(LThemeName, LEnginePath, LMoveTimeText, LFen);
+  ParseCommandLine(LThemeName, LScaleText, LEnginePath, LMoveTimeText, LFen);
+  if LScaleText = '' then
+    LScale := CDefaultScale
+  else if not TryStrToInt(LScaleText, LScale) or (LScale < 1) then
+  begin
+    WriteLn(ErrOutput, 'Invalid scale: ', LScaleText, '. Expected a positive number.');
+    Halt(1);
+  end;
   if LMoveTimeText = '' then
     LMoveTime := CEngineMoveTime
   else if not TryStrToInt(LMoveTimeText, LMoveTime) or (LMoveTime <= 0) then
@@ -585,6 +655,8 @@ begin
   if LThemeName = '' then
     LThemeName := CDefaultTheme;
   SetupTheme(LThemeName);
+  InitVideo;
+  CheckScale;
   if LEnginePath <> '' then
     StartEngine(LEnginePath);
   LHasEngineLine := LEngine <> nil;
@@ -1257,6 +1329,7 @@ begin
   end;
   if OwnPiece(LPosition[f, r]) and not (LSelected and (LTargets[f, r] <> '')) then
   begin
+    LReselected := LSelected and (f = LSelFile) and (r = LSelRank);
     LSelected := TRUE;
     LSelFile := f;
     LSelRank := r;
@@ -1280,7 +1353,11 @@ begin
   if not ScreenToSquare(AX, AY, f, r) then
     exit;
   if (f = LSelFile) and (r = LSelRank) then
+  begin
+    if LReselected then
+      Deselect;
     exit;
+  end;
   if LTargets[f, r] <> '' then
     TryMove(f, r)
   else
@@ -1374,7 +1451,17 @@ begin
     gsStalemate:
       result := 'Stalemate.';
     gsDraw:
-      result := 'Draw.';
+      begin
+        result := 'Draw.';
+        case LGame.DrawReason of
+          drFiftyMoves:
+            ASecondLine := 'Fifty-move rule.';
+          drRepetition:
+            ASecondLine := 'Threefold repetition.';
+          drMaterial:
+            ASecondLine := 'Insufficient material.';
+        end;
+      end;
   end;
 end;
 
@@ -1388,10 +1475,16 @@ begin
   result := result + '...';
 end;
 
-procedure DrawHelpLine(const AIndex: integer; const AKey, ALabel: string);
+procedure DrawHelpLine(const AIndex: integer; const AKey, ALabel: string; const AEnabled: boolean = TRUE);
+var
+  LColor: TSDL_Color;
 begin
-  DrawText(LTextFont, LBoardSize + 8, LHelpY + AIndex * CHelpStep, AKey, Color(ciHelp));
-  DrawText(LTextFont, LBoardSize + 40, LHelpY + AIndex * CHelpStep, ALabel, Color(ciHelp));
+  if AEnabled then
+    LColor := Color(ciHelp)
+  else
+    LColor := MixColors(ciHelp, ciPanel);
+  DrawText(LTextFont, LBoardSize + 8, LHelpY + AIndex * CHelpStep, AKey, LColor);
+  DrawText(LTextFont, LBoardSize + 40, LHelpY + AIndex * CHelpStep, ALabel, LColor);
 end;
 
 procedure DrawPanel;
@@ -1444,9 +1537,9 @@ begin
   end;
   DrawHelpLine(i, 'N', 'new game');
   DrawHelpLine(i + 1, 'F', 'flip board');
-  if LEngine <> nil then
+  if LHasEngineLine then
   begin
-    DrawHelpLine(i + 2, 'S', 'switch sides');
+    DrawHelpLine(i + 2, 'S', 'switch sides', LEngine <> nil);
     Inc(i);
   end;
   DrawHelpLine(i + 2, '<-', 'take back');
@@ -1485,6 +1578,71 @@ begin
   SDL_RenderPresent(LRenderer);
 end;
 
+procedure HandleEvent(var e: TSDL_Event; var AQuit: boolean);
+begin
+  SDL_ConvertEventToRenderCoordinates(LRenderer, @e);
+  case e.type_ of
+    SDL_EVENT_QUIT:
+      AQuit := TRUE;
+    SDL_EVENT_KEY_DOWN:
+      case e.key.key of
+        SDLK_ESCAPE:
+          if LPromoting then
+          begin
+            LPromoting := FALSE;
+            Deselect;
+          end else
+            AQuit := TRUE;
+        SDLK_N:
+          NewGame;
+        SDLK_F:
+          LFlipped := not LFlipped;
+        SDLK_S:
+          SwitchSides;
+        SDLK_BACKSPACE:
+          TakeBack;
+        SDLK_M:
+          LSoundEnabled := not LSoundEnabled;
+        SDLK_C:
+          CopyToClipboard(GamePgn, 'PGN copied.');
+        SDLK_P:
+          CopyToClipboard(LGame.GetFen(FALSE), 'FEN copied.');
+      end;
+    SDL_EVENT_MOUSE_MOTION:
+      begin
+        LMouseX := e.motion.x;
+        LMouseY := e.motion.y;
+      end;
+    SDL_EVENT_MOUSE_BUTTON_DOWN:
+      if e.button.button = SDL_BUTTON_LEFT then
+      begin
+        LMouseX := e.button.x;
+        LMouseY := e.button.y;
+        MouseDown(e.button.x, e.button.y);
+      end;
+    SDL_EVENT_MOUSE_BUTTON_UP:
+      if e.button.button = SDL_BUTTON_LEFT then
+        MouseUp(e.button.x, e.button.y);
+  end;
+end;
+
+function WaitTimeout: cint32;
+var
+  LNow: UInt64;
+begin
+  result := -1;
+  if LEngine <> nil then
+  begin
+    if LEngine.Thinking or (EngineToMove and (LGame.State = gsProgress)) then
+      exit(10);
+    result := 250;
+  end;
+  LNow := SDL_GetTicks;
+  if (LNotice <> '') and (LNow < LNoticeUntil) then
+    if (result < 0) or (LNoticeUntil - LNow < UInt64(result)) then
+      result := LNoticeUntil - LNow;
+end;
+
 procedure MainLoop;
 var
   e: TSDL_Event;
@@ -1492,53 +1650,10 @@ var
 begin
   while not LQuit do
   begin
-    while SDL_PollEvent(@e) do
-    begin
-      SDL_ConvertEventToRenderCoordinates(LRenderer, @e);
-      case e.type_ of
-        SDL_EVENT_QUIT:
-          LQuit := TRUE;
-        SDL_EVENT_KEY_DOWN:
-          case e.key.key of
-            SDLK_ESCAPE:
-              if LPromoting then
-              begin
-                LPromoting := FALSE;
-                Deselect;
-              end else
-                LQuit := TRUE;
-            SDLK_N:
-              NewGame;
-            SDLK_F:
-              LFlipped := not LFlipped;
-            SDLK_S:
-              SwitchSides;
-            SDLK_BACKSPACE:
-              TakeBack;
-            SDLK_M:
-              LSoundEnabled := not LSoundEnabled;
-            SDLK_C:
-              CopyToClipboard(GamePgn, 'PGN copied.');
-            SDLK_P:
-              CopyToClipboard(LGame.GetFen(FALSE), 'FEN copied.');
-          end;
-        SDL_EVENT_MOUSE_MOTION:
-          begin
-            LMouseX := e.motion.x;
-            LMouseY := e.motion.y;
-          end;
-        SDL_EVENT_MOUSE_BUTTON_DOWN:
-          if e.button.button = SDL_BUTTON_LEFT then
-          begin
-            LMouseX := e.button.x;
-            LMouseY := e.button.y;
-            MouseDown(e.button.x, e.button.y);
-          end;
-        SDL_EVENT_MOUSE_BUTTON_UP:
-          if e.button.button = SDL_BUTTON_LEFT then
-            MouseUp(e.button.x, e.button.y);
-      end;
-    end;
+    if SDL_WaitEventTimeout(@e, WaitTimeout) then
+      repeat
+        HandleEvent(e, LQuit);
+      until not SDL_PollEvent(@e);
     UpdateEngine;
     UpdateCursor;
     Render;
@@ -1548,10 +1663,7 @@ end;
 begin
   LoadConfig;
   SetupPanel;
-  SDL_SetAppMetadata(CAppTitle, CAppVersion, 'pixelchess');
-  if not SDL_Init(SDL_INIT_VIDEO) then
-    Fail('SDL_Init');
-  if not SDL_CreateWindowAndRenderer(CAppTitle + ' ' + CAppVersion, LWidth, LHeight, 0, @LWindow, @LRenderer) then
+  if not SDL_CreateWindowAndRenderer(CAppTitle + ' ' + CAppVersion, LScale * LWidth, LScale * LHeight, 0, @LWindow, @LRenderer) then
     Fail('SDL_CreateWindowAndRenderer');
   SetWindowIcon;
   SDL_SetRenderLogicalPresentation(LRenderer, LWidth, LHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
