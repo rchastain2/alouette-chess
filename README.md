@@ -57,9 +57,7 @@ uci=0
 - `enabled`: `1` (default) to play sounds, `0` to start muted.
 - `uci`: `1` to record the dialogue with the engine in the log file, `0` (default) otherwise.
 
-An unknown theme name prints the list of valid ones. If the file is missing, it is created with the default values: theme `bftc`, scale 1, no computer opponent, sound on.
-
-Errors and warnings are written to `pixelchess.log`, next to the executable. This file is recreated at each launch.
+If the file is missing, it is created with the default values.
 
 These settings can also be given on the command line, which overrides `pixelchess.ini` for that session without modifying it:
 
@@ -89,21 +87,9 @@ On the command line, a relative engine path is resolved from the current directo
 | `P`               | Copy the position (FEN)                 |
 | `Esc`             | Cancel a promotion, or quit             |
 
-## Project layout
-
-```
-source/           Pascal sources
-  chess/          Chess rules, FEN, SAN, move list
-images/           Piece and board graphics, one folder per theme
-fonts/            Fonts
-sounds/           Sound effects
-tools/            makesounds.py, which synthesizes the sound effects
-```
-
 ## Credits
 
 - Fonts: Alagard by Hewett Tsoi, Minecraftia
-- Sounds: synthesized by `tools/makesounds.py` (requires Python 3 and NumPy)
 - Themes:
   - `bftc`: pieces from *Bobby Fischer Teaches Chess*
   - `deepbasic`: pieces from the *Deep Basic* chess program by Thomas McBurney
