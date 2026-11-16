@@ -1,0 +1,2 @@
+Pieces from the Deep Basic chess program by Thomas McBurney (c) 2003.
+Not to be published.

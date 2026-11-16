@@ -26,9 +26,18 @@ type
   end;
 
 const
-  CThemes: array[0..6] of TTheme = (
+  CThemes: array[0..8] of TTheme = (
     (
       Name: 'bftc'; Kind: tkDrawn; Square: 38; Margin: 16;
+      Colors: (
+        $101610FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $1E5A28B4, $1E6E28E6, $1E6E28A0,
+        $202E22FF, $466040FF, $EEEED2FF, $E8ECE0FF, $FF7864FF, $466040FF, $CDD7BEFF, $8CA07DFF,
+        $0000006E, $202E22F0, $EEEED2FF, $00000000, $769656FF, $EEEED2FF,
+        $F2F2E6FF, $EEEED2FF, $769656FF, $2F3B24FF
+      )
+    ),
+    (
+      Name: 'deepbasic'; Kind: tkDrawn; Square: 40; Margin: 16;
       Colors: (
         $101610FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $1E5A28B4, $1E6E28E6, $1E6E28A0,
         $202E22FF, $466040FF, $EEEED2FF, $E8ECE0FF, $FF7864FF, $466040FF, $CDD7BEFF, $8CA07DFF,
@@ -70,6 +79,15 @@ const
         $4A2E24FF, $4A2E24FF, $EAC9AEFF, $F0E1D2FF, $FF826EFF, $8C5845FF, $D6BEAAFF, $BE9682FF,
         $00000064, $8C5845F5, $674032FF, $D69282FF, $D69282FF, $EAC9AEFF,
         $00000000, $00000000, $00000000, $00000000
+      )
+    ),
+    (
+      Name: 'owl'; Kind: tkDrawn; Square: 40; Margin: 16;
+      Colors: (
+        $101610FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $1E5A28B4, $1E6E28E6, $1E6E28A0,
+        $202E22FF, $466040FF, $EEEED2FF, $E8ECE0FF, $FF7864FF, $466040FF, $CDD7BEFF, $8CA07DFF,
+        $0000006E, $202E22F0, $EEEED2FF, $00000000, $769656FF, $EEEED2FF,
+        $F2F2E6FF, $EEEED2FF, $769656FF, $2F3B24FF
       )
     ),
     (

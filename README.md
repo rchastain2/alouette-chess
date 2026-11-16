@@ -46,7 +46,7 @@ movetime=1000
 enabled=1
 ```
 
-- `theme`: one of `bftc` (default), `fritz`, `lanea`, `lucas`, `m484`, `smirf`, `warlord`
+- `theme`: one of `bftc` (default), `deepbasic`, `fritz`, `lanea`, `lucas`, `m484`, `owl`, `smirf`, `warlord`
 - `path`: the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. Leave it empty to have both sides played by humans.
 - `movetime`: the engine's thinking time per move, in milliseconds (default `1000`).
 - `enabled`: `1` (default) to play sounds, `0` to start muted.
@@ -98,10 +98,12 @@ tools/            makesounds.py, which synthesizes the sound effects
 - Sounds: synthesized by `tools/makesounds.py` (requires Python 3 and NumPy)
 - Themes:
   - `bftc`: pieces from *Bobby Fischer Teaches Chess*
+  - `deepbasic`: pieces from the *Deep Basic* chess program by Thomas McBurney
   - `fritz`: pieces and board reproducing those of the Fritz chess program (ChessBase)
   - `lanea`: [Boardgame tiles](https://opengameart.org/content/boardgame-tiles) by Lanea Zimmerman
   - `lucas`: [Pixel chess pieces](https://opengameart.org/content/pixel-chess-pieces) by Lucas312
   - `m484`: [M484 chess set](https://opengameart.org/content/m484-chess-set) by Master484 (CC-BY 4.0 / OGA-BY 4.0)
+  - `owl`: pieces from the *OWL Chess* demo program by Borland International
   - `smirf`: [pieces](https://www.chessvariants.com/contests/10/crc.html) by Reinhard Scharnagl
   - `warlord`: pieces from the [Warlord](https://chessprogramming.org/Warlord) chess program by William H. Rogers
 

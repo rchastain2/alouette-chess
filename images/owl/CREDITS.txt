@@ -1,0 +1,2 @@
+Pieces from the OWL Chess demo program by Borland International (c) 1992.
+Not to be published.
