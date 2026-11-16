@@ -622,7 +622,7 @@ begin
     LMax := 1;
   if LScale > LMax then
   begin
-    Report(Format('Warning: scale %d is too large for this screen (%dx%d), using %d with theme %s.', [LScale, LRect.w, LRect.h, LMax, LTheme.Name]));
+    Report(Format('Warning: scale %d is too large for this screen (%dx%d), using %d with theme %s.', [LScale, LRect.w, LRect.h, LMax, LTheme.Title]));
     LScale := LMax;
   end;
 end;
@@ -671,7 +671,7 @@ begin
   SetupTheme(LThemeName);
   InitVideo;
   CheckScale;
-  WriteLog(Format('Theme %s, scale %d', [LTheme.Name, LScale]));
+  WriteLog(Format('Theme %s, scale %d', [LTheme.Title, LScale]));
   if LEnginePath <> '' then
     StartEngine(LEnginePath);
   LHasEngineLine := LEngine <> nil;
@@ -1677,20 +1677,10 @@ begin
   end;
 end;
 
-function WindowTitle: string;
-const
-  CEnDash = #$E2#$80#$93;
-  CTimes = #$C3#$97;
-begin
-  result := Concat(CAppTitle, ' ', CAppVersion, ' ', CEnDash, ' ', LTheme.Title);
-  if LScale > 1 then
-    result := Concat(result, ' ', CTimes, IntToStr(LScale));
-end;
-
 begin
   LoadConfig;
   SetupPanel;
-  if not SDL_CreateWindowAndRenderer(PAnsiChar(WindowTitle), LScale * LWidth, LScale * LHeight, 0, @LWindow, @LRenderer) then
+  if not SDL_CreateWindowAndRenderer(PAnsiChar(Concat(CAppTitle, ' ', CAppVersion)), LScale * LWidth, LScale * LHeight, 0, @LWindow, @LRenderer) then
     Fail('SDL_CreateWindowAndRenderer');
   SetWindowIcon;
   SDL_SetRenderLogicalPresentation(LRenderer, LWidth, LHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);

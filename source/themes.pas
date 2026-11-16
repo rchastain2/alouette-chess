@@ -29,7 +29,7 @@ type
 const
   CThemes: array[0..8] of TTheme = (
     (
-      Name: 'bftc'; Title: 'BFTC'; Kind: tkDrawn; Square: 38; Margin: 16;
+      Name: 'bftc'; Title: 'BFTC'; Kind: tkDrawn; Square: 40; Margin: 16;
       Colors: (
         $101610FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $1E5A28B4, $1E6E28E6, $1E6E28A0,
         $202E22FF, $466040FF, $EEEED2FF, $E8ECE0FF, $FF7864FF, $466040FF, $CDD7BEFF, $8CA07DFF,
@@ -65,7 +65,7 @@ const
       )
     ),
     (
-      Name: 'lucas'; Title: 'Lucas'; Kind: tkImage; Square: 32; Margin: 16;
+      Name: 'lucas'; Title: 'Lucas312'; Kind: tkImage; Square: 32; Margin: 16;
       Colors: (
         $121418FF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $22262EFF, $4A5262FF, $C8D7EBFF, $E4E8EEFF, $FF7864FF, $4A5262FF, $C8CED8FF, $8890A0FF,
@@ -74,7 +74,7 @@ const
       )
     ),
     (
-      Name: 'm484'; Title: 'M484'; Kind: tkSheet; Square: 28; Margin: 12;
+      Name: 'm484'; Title: 'Master484'; Kind: tkSheet; Square: 28; Margin: 12;
       Colors: (
         $281A14FF, $FFDC5A5A, $FFDC5A78, $E6282882, $5AAAFF6E, $3C8C46BE, $3CA046E6, $3CA046A0,
         $4A2E24FF, $4A2E24FF, $EAC9AEFF, $F0E1D2FF, $FF826EFF, $8C5845FF, $D6BEAAFF, $BE9682FF,
@@ -83,12 +83,12 @@ const
       )
     ),
     (
-      Name: 'owl'; Title: 'Owl'; Kind: tkDrawn; Square: 40; Margin: 16;
+      Name: 'owl'; Title: 'OWL'; Kind: tkDrawn; Square: 40; Margin: 16;
       Colors: (
-        $101610FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $1E5A28B4, $1E6E28E6, $1E6E28A0,
-        $202E22FF, $466040FF, $EEEED2FF, $E8ECE0FF, $FF7864FF, $466040FF, $CDD7BEFF, $8CA07DFF,
-        $0000006E, $202E22F0, $EEEED2FF, $00000000, $769656FF, $EEEED2FF,
-        $F2F2E6FF, $EEEED2FF, $769656FF, $2F3B24FF
+        $141820FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $283246B4, $283246E6, $283246A0,
+        $2A2F3AFF, $4A5468FF, $D8DCE4FF, $E4E8EEFF, $FF7864FF, $4A5468FF, $C8CED8FF, $8890A0FF,
+        $0000006E, $2A2F3AF0, $D8DCE4FF, $00000000, $8C96A8FF, $D8DCE4FF,
+        $3C4250FF, $D8DCE4FF, $8C96A8FF, $D8DCE4FF
       )
     ),
     (
