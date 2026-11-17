@@ -32,7 +32,7 @@ const
   CLogFile = 'pixelchess.log';
   CDefaultTheme = 'bftc';
   CDefaultScale = 1;
-  CDefaultEngine = 'engines/alouette/alouette'{$IFDEF WINDOWS} + '.exe'{$ENDIF};
+  CDefaultEngine = 'engine/alouette'{$IFDEF WINDOWS} + '.exe'{$ENDIF};
 
 type
   TBoardArray = array[0..7, 0..7] of char;

@@ -4,8 +4,8 @@
 *.ppu
 /pixelchess.log
 /pixelchess.ini
-/engines/alouette/alouette
-/engines/alouette/alouette.exe
-/engines/alouette/alouette.cfg
-/engines/alouette/*.log
-/engines/alouette/source/temp/
+/engine/alouette
+/engine/alouette.exe
+/engine/alouette.cfg
+/engine/*.log
+/engine/source/temp/

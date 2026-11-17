@@ -13,13 +13,13 @@ $(TARGET): source/pixelchess.pas source/*.pas source/chess/*.pas | temp
 	fpc $(PFLAGS) -o$@ $<
 
 alouette:
-	$(MAKE) -C engines/alouette
+	$(MAKE) -C engine
 
 temp:
 	mkdir -p $@
 
 clean:
 	rm -rf temp $(TARGET)
-	$(MAKE) -C engines/alouette/source distclean
+	$(MAKE) -C engine/source distclean
 
 .PHONY: all alouette clean
