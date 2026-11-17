@@ -18,6 +18,14 @@ alouette:
 temp:
 	mkdir -p $@
 
+ifneq ($(OS),Windows_NT)
+UNAME_S := $(shell uname -s)
+endif
+
+ifneq ($(UNAME_S),Linux)
+desktop:
+	$(error The desktop target is only supported on Linux)
+else
 DESKTOP_DIR := $(shell xdg-user-dir DESKTOP 2>/dev/null || echo $(HOME)/Desktop)
 DESKTOP_FILE := $(DESKTOP_DIR)/$(TARGET).desktop
 
@@ -35,6 +43,7 @@ desktop: $(TARGET)
 	  > "$(DESKTOP_FILE)"
 	chmod +x "$(DESKTOP_FILE)"
 	-gio set "$(DESKTOP_FILE)" metadata::trusted true 2>/dev/null
+endif
 
 clean:
 	rm -rf temp $(TARGET)
