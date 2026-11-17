@@ -27,6 +27,7 @@ const
   CSheetPieceOrder = 'KQRBNP';
   CEngineMoveTime = 1000;
   CAnimationTime = 200;
+  CTextCacheSize = 512;
   CConfigFile = 'pixelchess.ini';
   CLogFile = 'pixelchess.log';
   CDefaultTheme = 'bftc';
@@ -57,6 +58,7 @@ var
   LPromoting: boolean = FALSE;
   LPromotionMove: string;
   LTitleFont, LTextFont: PTTF_Font;
+  LTextCache: TStringList = nil;
   LTheme: TTheme;
   LSquare, LMargin, LBoardSize, LWidth, LHeight, LDotSize: integer;
   LPieceTop, LPopupX, LPopupY, LPopupW, LPopupH: integer;
@@ -286,29 +288,69 @@ begin
   result := w;
 end;
 
-procedure DrawText(const AFont: PTTF_Font; const AX, AY: single; const AText: string; const AColor: TSDL_Color);
+procedure ClearTextCache;
 var
+  i: integer;
+begin
+  if LTextCache = nil then
+    exit;
+  for i := 0 to LTextCache.Count - 1 do
+    SDL_DestroyTexture(PSDL_Texture(LTextCache.Objects[i]));
+  LTextCache.Clear;
+end;
+
+procedure FreeTextCache;
+begin
+  ClearTextCache;
+  FreeAndNil(LTextCache);
+end;
+
+function TextTexture(const AFont: PTTF_Font; const AText: string; const AColor: TSDL_Color): PSDL_Texture;
+var
+  LKey: string;
+  LIndex: integer;
   LSurface: PSDL_Surface;
-  LTexture: PSDL_Texture;
-  LRect: TSDL_FRect;
   LColor: TSDL_Color;
 begin
-  if AText = '' then
-    exit;
+  if LTextCache = nil then
+  begin
+    LTextCache := TStringList.Create;
+    LTextCache.CaseSensitive := TRUE;
+    LTextCache.Sorted := TRUE;
+  end;
+  LKey := Format('%p|%.2x%.2x%.2x|%s', [Pointer(AFont), AColor.r, AColor.g, AColor.b, AText]);
+  if LTextCache.Find(LKey, LIndex) then
+    exit(PSDL_Texture(LTextCache.Objects[LIndex]));
+  result := nil;
   LColor := AColor;
   LColor.a := 255;
   LSurface := TTF_RenderText_Solid(AFont, PAnsiChar(AText), 0, LColor);
   if LSurface = nil then
     exit;
-  LTexture := SDL_CreateTextureFromSurface(LRenderer, LSurface);
-  if LTexture <> nil then
-  begin
-    SDL_SetTextureScaleMode(LTexture, SDL_SCALEMODE_NEAREST);
-    LRect := MakeRect(Round(AX), Round(AY), LSurface^.w, LSurface^.h);
-    SDL_RenderTexture(LRenderer, LTexture, nil, @LRect);
-    SDL_DestroyTexture(LTexture);
-  end;
+  result := SDL_CreateTextureFromSurface(LRenderer, LSurface);
   SDL_DestroySurface(LSurface);
+  if result = nil then
+    exit;
+  SDL_SetTextureScaleMode(result, SDL_SCALEMODE_NEAREST);
+  if LTextCache.Count >= CTextCacheSize then
+    ClearTextCache;
+  LTextCache.AddObject(LKey, TObject(result));
+end;
+
+procedure DrawText(const AFont: PTTF_Font; const AX, AY: single; const AText: string; const AColor: TSDL_Color);
+var
+  LTexture: PSDL_Texture;
+  LRect: TSDL_FRect;
+  w, h: single;
+begin
+  if AText = '' then
+    exit;
+  LTexture := TextTexture(AFont, AText, AColor);
+  if LTexture = nil then
+    exit;
+  SDL_GetTextureSize(LTexture, @w, @h);
+  LRect := MakeRect(Round(AX), Round(AY), w, h);
+  SDL_RenderTexture(LRenderer, LTexture, nil, @LRect);
 end;
 
 procedure DrawTextCentered(const ACenterX, ACenterY: single; const AText: string; const AColor: TSDL_Color);
@@ -433,6 +475,7 @@ function CheckFen(var AFen: string): boolean;
 var
   LFields, LRanks: TStringArray;
   LRows: array[0..7] of string;
+  LCastling: string;
   LWhiteKings, LBlackKings, LCount, LValue, i, j, f: integer;
   c: char;
 begin
@@ -487,6 +530,18 @@ begin
     for j := 1 to Length(LFields[2]) do
       if not (LFields[2][j] in ['K', 'Q', 'k', 'q']) then
         exit;
+  LCastling := '';
+  if (Pos('K', LFields[2]) > 0) and (LRows[7][5] = 'K') and (LRows[7][8] = 'R') then
+    LCastling := LCastling + 'K';
+  if (Pos('Q', LFields[2]) > 0) and (LRows[7][5] = 'K') and (LRows[7][1] = 'R') then
+    LCastling := LCastling + 'Q';
+  if (Pos('k', LFields[2]) > 0) and (LRows[0][5] = 'k') and (LRows[0][8] = 'r') then
+    LCastling := LCastling + 'k';
+  if (Pos('q', LFields[2]) > 0) and (LRows[0][5] = 'k') and (LRows[0][1] = 'r') then
+    LCastling := LCastling + 'q';
+  if LCastling = '' then
+    LCastling := '-';
+  LFields[2] := LCastling;
   if LFields[3] <> '-' then
   begin
     if (Length(LFields[3]) <> 2) or not (LFields[3][1] in ['a'..'h']) then
@@ -1139,40 +1194,26 @@ begin
   UpdatePosition;
 end;
 
-procedure UndoMove;
+procedure UndoMoves(ACount: integer);
 var
-  LList, LSans, LShown, LUci: TStringList;
   i: integer;
 begin
-  if LMoves.Count = 0 then
+  if ACount > LMoves.Count then
+    ACount := LMoves.Count;
+  if ACount = 0 then
     exit;
-  LList := TStringList.Create;
-  LSans := TStringList.Create;
-  LShown := TStringList.Create;
-  LUci := TStringList.Create;
-  try
-    LList.Assign(LMoves);
-    LSans.Assign(LSanMoves);
-    LShown.Assign(LShownMoves);
-    LUci.Assign(LUciMoves);
-    LList.Delete(LList.Count - 1);
-    LSans.Delete(LSans.Count - 1);
-    LShown.Delete(LShown.Count - 1);
-    LUci.Delete(LUci.Count - 1);
-    NewGame;
-    for i := 0 to LList.Count - 1 do
-      LGame.DoMove(LList[i]);
-    LMoves.Assign(LList);
-    LSanMoves.Assign(LSans);
-    LShownMoves.Assign(LShown);
-    LUciMoves.Assign(LUci);
-    UpdatePosition;
-  finally
-    LList.Free;
-    LSans.Free;
-    LShown.Free;
-    LUci.Free;
+  for i := 1 to ACount do
+  begin
+    LMoves.Delete(LMoves.Count - 1);
+    LSanMoves.Delete(LSanMoves.Count - 1);
+    LShownMoves.Delete(LShownMoves.Count - 1);
+    LUciMoves.Delete(LUciMoves.Count - 1);
   end;
+  LGame.Free;
+  LGame := TChessGame.Create(StartFen);
+  for i := 0 to LMoves.Count - 1 do
+    LGame.DoMove(LMoves[i]);
+  UpdatePosition;
 end;
 
 function EngineToMove: boolean;
@@ -1335,9 +1376,10 @@ begin
   Deselect;
   if LEngine <> nil then
     LEngine.Stop;
-  UndoMove;
-  if EngineToMove then
-    UndoMove;
+  if (LEngine <> nil) and not EngineToMove then
+    UndoMoves(2)
+  else
+    UndoMoves(1);
 end;
 
 function OwnPiece(const c: char): boolean;
@@ -1773,6 +1815,7 @@ begin
   LEngine.Free;
   FreeAudio;
   FreeCursors;
+  FreeTextCache;
   FreeFonts;
   FreeTextures;
   SDL_DestroyRenderer(LRenderer);

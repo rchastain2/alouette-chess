@@ -14,7 +14,7 @@ A pixel-art chess game written in Free Pascal with SDL3. Play against a friend o
 ## Requirements
 
 - [Free Pascal](https://www.freepascal.org/) 3.2 or later
-- [SDL3](https://libsdl.org/) and [SDL3_ttf](https://github.com/libsdl-org/SDL_ttf) libraries
+- [SDL3](https://libsdl.org/) 3.4 or later and [SDL3_ttf](https://github.com/libsdl-org/SDL_ttf) libraries
 - [SDL3-for-Pascal](https://github.com/PascalGameDevelopment/SDL3-for-Pascal) units, cloned next to this repository (`../sdl3-for-pascal`)
 
 ## Building

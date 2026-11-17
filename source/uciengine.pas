@@ -14,10 +14,11 @@ type
     FInput, FOutput: PSDL_IOStream;
     FBuffer: string;
     FThinking: boolean;
-    FDiscard: integer;
+    FPendingReady: integer;
     FName: string;
     FExited: boolean;
     procedure Send(const ALine: string);
+    procedure Sync;
     function ReadLine(out ALine: string): boolean;
   public
     constructor Create(const AExecutable, AWorkingDir: string);
@@ -95,6 +96,12 @@ begin
   SDL_FlushIO(FInput);
 end;
 
+procedure TUciEngine.Sync;
+begin
+  Send('isready');
+  Inc(FPendingReady);
+end;
+
 function TUciEngine.ReadLine(out ALine: string): boolean;
 var
   LChunk: array[0..4095] of char;
@@ -129,7 +136,7 @@ procedure TUciEngine.NewGame;
 begin
   Stop;
   Send('ucinewgame');
-  Send('isready');
+  Sync;
 end;
 
 procedure TUciEngine.Go(const AFen: string; const AMoves: TStrings; const AMoveTime: integer);
@@ -157,7 +164,7 @@ begin
   if not FThinking then
     exit;
   Send('stop');
-  Inc(FDiscard);
+  Sync;
   FThinking := FALSE;
 end;
 
@@ -171,13 +178,12 @@ begin
   begin
     if Copy(LLine, 1, 8) = 'id name ' then
       FName := Trim(Copy(LLine, 9, MaxInt));
+    if (LLine = 'readyok') and (FPendingReady > 0) then
+      Dec(FPendingReady);
     if Copy(LLine, 1, 9) <> 'bestmove ' then
       continue;
-    if FDiscard > 0 then
-    begin
-      Dec(FDiscard);
+    if FPendingReady > 0 then
       continue;
-    end;
     LWords := LLine.Split(' ');
     AMove := LWords[1];
     FThinking := FALSE;

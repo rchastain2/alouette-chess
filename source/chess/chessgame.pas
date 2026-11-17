@@ -31,6 +31,7 @@ type
       FHistory: TStringList;
       FState: TGameState;
       FDrawReason: TDrawReason;
+      function PositionKey: string;
     public
       constructor Create(const AFenRecord: string);
       destructor Destroy; override;
@@ -65,7 +66,6 @@ begin
   if FNext = nil then FNext := TChessPosition.Create else FNext.Create;
   if FList = nil then FList := TMoveList.Create else FList.Clear;
   if FHistory = nil then FHistory := TStringList.Create else FHistory.Clear;
-  FHistory.Append(GetFen);
   Think;
 end;
 
@@ -98,6 +98,7 @@ begin
     if not FNext.Check then
       FList.Append(FCurrent.List.GetMove(i));
   end;
+  FHistory.Append(PositionKey);
   
   FDrawReason := drNone;
   if FList.Count = 0 then
@@ -202,7 +203,6 @@ begin
   else
     LType := ptQueen;
   FCurrent.DoMove(LMove, LType);
-  FHistory.Append(GetFen);
   Think;
 end;
 
@@ -244,25 +244,37 @@ begin
     result := SquareToStr(x2, y1);
 end;
 
-function TChessGame.Repetition: boolean;
-  function PositionKey(const AFenRecord: string): string;
-  var
-    LFields: TStringArray;
+function TChessGame.PositionKey: string;
+var
+  LFields: TStringArray;
+  i: integer;
+begin
+  LFields := GetFen.Split([' ']);
+  if LFields[3] <> '-' then
   begin
-    LFields := AFenRecord.Split([' ']);
-    result := string.Join(' ', LFields, 0, 4);
+    LFields[3] := '-';
+    for i := 0 to FList.Count - 1 do
+      if IsEnPassant(FList.GetMoveStr(i)) <> '' then
+      begin
+        LFields[3] := FCurrent.Data.FEnPassant;
+        Break;
+      end;
   end;
+  result := string.Join(' ', LFields, 0, 4);
+end;
+
+function TChessGame.Repetition: boolean;
 var
   i, n: integer;
   LKey: string;
 begin
   result := FALSE;
-  LKey := PositionKey(FHistory[FHistory.Count - 1]);
+  LKey := FHistory[FHistory.Count - 1];
   i := FHistory.Count - 2;
   n := 1;
   while (i >= 0) and not result do
   begin
-    if PositionKey(FHistory[i]) = LKey then
+    if FHistory[i] = LKey then
     begin
       Inc(n);
       if n = 3 then

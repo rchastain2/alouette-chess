@@ -46,7 +46,10 @@ begin
       begin
         if (ABoard[x, 1].FType = ptRook) and (ABoard[x, 1].FColor = pcWhite)
         and ((LExpr.Match[0] = XToChar(x, 'A')) or (LExpr.Match[0] = 'K')) then
+        begin
           ARights[caWH] := x;
+          Break;
+        end;
         Dec(x);
       end;
     end;
@@ -58,7 +61,10 @@ begin
       begin
         if (ABoard[x, 1].FType = ptRook) and (ABoard[x, 1].FColor = pcWhite)
         and ((LExpr.Match[0] = XToChar(x, 'A')) or (LExpr.Match[0] = 'Q')) then
+        begin
           ARights[caWA] := x;
+          Break;
+        end;
         Inc(x);
       end;
     end;
@@ -73,7 +79,10 @@ begin
       begin
         if (ABoard[x, 8].FType = ptRook) and (ABoard[x, 8].FColor = pcBlack)
         and ((LExpr.Match[0] = XToChar(x, 'a')) or (LExpr.Match[0] = 'k')) then
+        begin
           ARights[caBH] := x;
+          Break;
+        end;
         Dec(x);
       end;
     end;
@@ -85,7 +94,10 @@ begin
       begin
         if (ABoard[x, 8].FType = ptRook) and (ABoard[x, 8].FColor = pcBlack)
         and ((LExpr.Match[0] = XToChar(x, 'a')) or (LExpr.Match[0] = 'q')) then
+        begin
           ARights[caBA] := x;
+          Break;
+        end;
         Inc(x);
       end;
     end;
