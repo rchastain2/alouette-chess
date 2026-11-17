@@ -18,8 +18,26 @@ alouette:
 temp:
 	mkdir -p $@
 
+DESKTOP_DIR := $(shell xdg-user-dir DESKTOP 2>/dev/null || echo $(HOME)/Desktop)
+DESKTOP_FILE := $(DESKTOP_DIR)/$(TARGET).desktop
+
+desktop: $(TARGET)
+	printf '%s\n' \
+	  '[Desktop Entry]' \
+	  'Type=Application' \
+	  'Name=Pixel Chess' \
+	  'Comment=Pixel-art chess game' \
+	  'Exec="$(CURDIR)/$(TARGET)"' \
+	  'Path=$(CURDIR)' \
+	  'Icon=$(CURDIR)/images/icon.png' \
+	  'Terminal=false' \
+	  'Categories=Game;BoardGame;' \
+	  > "$(DESKTOP_FILE)"
+	chmod +x "$(DESKTOP_FILE)"
+	-gio set "$(DESKTOP_FILE)" metadata::trusted true 2>/dev/null
+
 clean:
 	rm -rf temp $(TARGET)
 	$(MAKE) -C engine/source distclean
 
-.PHONY: all alouette clean
+.PHONY: all alouette clean desktop

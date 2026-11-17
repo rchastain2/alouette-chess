@@ -26,6 +26,8 @@ make
 
 `make clean` removes the build output.
 
+On Linux, `make desktop` adds a launcher to your desktop.
+
 ## Usage
 
 ```sh
