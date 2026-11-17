@@ -1294,7 +1294,7 @@ begin
   if (LEngine <> nil) and (LEngineColor = AColor) then
     result := LEngineName
   else
-    result := '?';
+    result := 'Human';
 end;
 
 function MoveSlot(const AIndex: integer): integer;
@@ -1321,7 +1321,7 @@ var
   end;
 
 begin
-  LText := Format('[Event "Casual game"]%s[Site "?"]%s[Date "%s"]%s[Round "-"]%s[White "%s"]%s[Black "%s"]%s[Result "%s"]%s',
+  LText := Format('[Event "Casual game"]%s[Site "Pixel Chess"]%s[Date "%s"]%s[Round "-"]%s[White "%s"]%s[Black "%s"]%s[Result "%s"]%s',
     [LineEnding, LineEnding, FormatDateTime('yyyy.mm.dd', Now), LineEnding, LineEnding,
      PlayerName(pcWhite), LineEnding, PlayerName(pcBlack), LineEnding, GameResult, LineEnding]);
   if LStartFen <> '' then
