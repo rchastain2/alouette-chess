@@ -24,10 +24,10 @@ const
   CHelpStep = 12;
   CSheetPieceSize = 26;
   CSheetPieceStep = 27;
-  CSheetPiecesX = 5;
-  CSheetWhitePiecesY = 8;
-  CSheetBlackPiecesY = 38;
-  CSheetBoardY = 255;
+  CSheetPiecesX = 185;
+  CSheetPiecesY = 8;
+  CSheetRowStep = 30;
+  CSheetDir = 'm484';
   CSheetPieceOrder = 'KQRBNP';
   CEngineMoveTime = 1000;
   CAnimationTime = 200;
@@ -773,7 +773,10 @@ end;
 
 function ImageDir: string;
 begin
-  result := Concat('images/', LTheme.Name, '/');
+  if LTheme.Kind = tkSheet then
+    result := Concat('images/', CSheetDir, '/')
+  else
+    result := Concat('images/', LTheme.Name, '/');
 end;
 
 procedure LoadTextures;
@@ -831,15 +834,16 @@ procedure DrawPiece(const c: char; const AX, AY: single);
 var
   LSrc, LDst: TSDL_FRect;
   LTexture: PSDL_Texture;
-  LIndex, w, h: integer;
+  LIndex, LRow, w, h: integer;
 begin
   if LTheme.Kind = tkSheet then
   begin
     LIndex := Pos(UpCase(c), CSheetPieceOrder) - 1;
     if WhitePiece(c) then
-      LSrc := MakeRect(CSheetPiecesX + LIndex * CSheetPieceStep, CSheetWhitePiecesY, CSheetPieceSize, CSheetPieceSize)
+      LRow := LTheme.Sheet.White
     else
-      LSrc := MakeRect(CSheetPiecesX + LIndex * CSheetPieceStep, CSheetBlackPiecesY, CSheetPieceSize, CSheetPieceSize);
+      LRow := LTheme.Sheet.Black;
+    LSrc := MakeRect(CSheetPiecesX + LIndex * CSheetPieceStep, CSheetPiecesY + LRow * CSheetRowStep, CSheetPieceSize, CSheetPieceSize);
     LDst := MakeRect(AX + (LSquare - CSheetPieceSize) div 2, AY + (LSquare - CSheetPieceSize) div 2, CSheetPieceSize, CSheetPieceSize);
     SDL_RenderTexture(LRenderer, LPieceTextures[0], @LSrc, @LDst);
     exit;
@@ -879,7 +883,7 @@ procedure DrawSheetPart(const ASrcX, ASrcY, ADstX, ADstY, AW, AH: single);
 var
   LSrc, LDst: TSDL_FRect;
 begin
-  LSrc := MakeRect(ASrcX, CSheetBoardY + ASrcY, AW, AH);
+  LSrc := MakeRect(ASrcX, LTheme.Sheet.Board + ASrcY, AW, AH);
   LDst := MakeRect(ADstX, ADstY, AW, AH);
   SDL_RenderTexture(LRenderer, LBoardTexture, @LSrc, @LDst);
 end;

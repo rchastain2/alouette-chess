@@ -17,19 +17,27 @@ type
     ciFrame, ciLight, ciDark, ciCoord
   );
 
+  TSheet = record
+    Board: integer;
+    White: integer;
+    Black: integer;
+  end;
+
   TTheme = record
     Name: string;
     Title: string;
     Kind: TThemeKind;
     Square: integer;
     Margin: integer;
+    Sheet: TSheet;
     Colors: array[TColorId] of cardinal;
   end;
 
 const
-  CThemes: array[0..8] of TTheme = (
+  CThemes: array[0..11] of TTheme = (
     (
       Name: 'bftc'; Title: 'BFTC'; Kind: tkDrawn; Square: 40; Margin: 16;
+      Sheet: (Board: 0; White: 0; Black: 0);
       Colors: (
         $101610FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $1E5A28B4, $1E6E28E6, $1E6E28A0,
         $202E22FF, $466040FF, $EEEED2FF, $E8ECE0FF, $FF7864FF, $466040FF, $CDD7BEFF, $8CA07DFF,
@@ -39,6 +47,7 @@ const
     ),
     (
       Name: 'deepbasic'; Title: 'Deep Basic'; Kind: tkDrawn; Square: 40; Margin: 16;
+      Sheet: (Board: 0; White: 0; Black: 0);
       Colors: (
         $101610FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $1E5A28B4, $1E6E28E6, $1E6E28A0,
         $202E22FF, $466040FF, $EEEED2FF, $E8ECE0FF, $FF7864FF, $466040FF, $CDD7BEFF, $8CA07DFF,
@@ -48,6 +57,7 @@ const
     ),
     (
       Name: 'fritz'; Title: 'Fritz'; Kind: tkImage; Square: 40; Margin: 16;
+      Sheet: (Board: 0; White: 0; Black: 0);
       Colors: (
         $141414FF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $242428FF, $505058FF, $F0F0F0FF, $E6E6E6FF, $FF7864FF, $505058FF, $D2D2D2FF, $8C8C96FF,
@@ -57,6 +67,7 @@ const
     ),
     (
       Name: 'lanea'; Title: 'Lanea'; Kind: tkImage; Square: 32; Margin: 32;
+      Sheet: (Board: 0; White: 0; Black: 0);
       Colors: (
         $14100EFF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $2E241EFF, $5A483AFF, $EBC878FF, $E6E6DCFF, $FF7864FF, $5A483AFF, $D2C8B4FF, $968C78FF,
@@ -66,6 +77,7 @@ const
     ),
     (
       Name: 'lucas'; Title: 'Lucas312'; Kind: tkImage; Square: 32; Margin: 16;
+      Sheet: (Board: 0; White: 0; Black: 0);
       Colors: (
         $121418FF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $22262EFF, $4A5262FF, $C8D7EBFF, $E4E8EEFF, $FF7864FF, $4A5262FF, $C8CED8FF, $8890A0FF,
@@ -75,6 +87,7 @@ const
     ),
     (
       Name: 'm484'; Title: 'Master484'; Kind: tkSheet; Square: 28; Margin: 12;
+      Sheet: (Board: 255; White: 0; Black: 13);
       Colors: (
         $281A14FF, $FFDC5A5A, $FFDC5A78, $E6282882, $5AAAFF6E, $3C8C46BE, $3CA046E6, $3CA046A0,
         $4A2E24FF, $4A2E24FF, $EAC9AEFF, $F0E1D2FF, $FF826EFF, $8C5845FF, $D6BEAAFF, $BE9682FF,
@@ -83,7 +96,38 @@ const
       )
     ),
     (
+      Name: 'm484-classic'; Title: 'Master484 Classic'; Kind: tkSheet; Square: 28; Margin: 12;
+      Sheet: (Board: 0; White: 0; Black: 4);
+      Colors: (
+        $221810FF, $FFDC5A5A, $FFDC5A78, $E6282882, $5AAAFF6E, $3C8C46BE, $3CA046E6, $3CA046A0,
+        $3E2A1CFF, $3E2A1CFF, $CCBB88FF, $EEE6CCFF, $FF826EFF, $7A5236FF, $D2C8A0FF, $B4A07AFF,
+        $00000064, $7A5236F5, $573A26FF, $BE8C64FF, $BE8C64FF, $CCBB88FF,
+        $00000000, $00000000, $00000000, $00000000
+      )
+    ),
+    (
+      Name: 'm484-gold'; Title: 'Master484 Gold'; Kind: tkSheet; Square: 28; Margin: 12;
+      Sheet: (Board: 0; White: 5; Black: 4);
+      Colors: (
+        $221810FF, $FFDC5A5A, $FFDC5A78, $E6282882, $5AAAFF6E, $3C8C46BE, $3CA046E6, $3CA046A0,
+        $3E2A1CFF, $3E2A1CFF, $CCBB88FF, $EEE6CCFF, $FF826EFF, $7A5236FF, $D2C8A0FF, $B4A07AFF,
+        $00000064, $7A5236F5, $573A26FF, $BE8C64FF, $BE8C64FF, $CCBB88FF,
+        $00000000, $00000000, $00000000, $00000000
+      )
+    ),
+    (
+      Name: 'm484-slate'; Title: 'Master484 Slate'; Kind: tkSheet; Square: 28; Margin: 12;
+      Sheet: (Board: 0; White: 0; Black: 11);
+      Colors: (
+        $221810FF, $FFDC5A5A, $FFDC5A78, $E6282882, $5AAAFF6E, $3C8C46BE, $3CA046E6, $3CA046A0,
+        $3E2A1CFF, $3E2A1CFF, $CCBB88FF, $EEE6CCFF, $FF826EFF, $7A5236FF, $D2C8A0FF, $B4A07AFF,
+        $00000064, $7A5236F5, $573A26FF, $BE8C64FF, $BE8C64FF, $CCBB88FF,
+        $00000000, $00000000, $00000000, $00000000
+      )
+    ),
+    (
       Name: 'owl'; Title: 'OWL'; Kind: tkDrawn; Square: 40; Margin: 16;
+      Sheet: (Board: 0; White: 0; Black: 0);
       Colors: (
         $141820FF, $FFDC3C5A, $FFDC3C78, $E6282882, $5AAAFF6E, $283246B4, $283246E6, $283246A0,
         $2A2F3AFF, $4A5468FF, $D8DCE4FF, $E4E8EEFF, $FF7864FF, $4A5468FF, $C8CED8FF, $8890A0FF,
@@ -93,6 +137,7 @@ const
     ),
     (
       Name: 'smirf'; Title: 'Smirf'; Kind: tkDrawn; Square: 36; Margin: 16;
+      Sheet: (Board: 0; White: 0; Black: 0);
       Colors: (
         $14100EFF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $3E2C22FF, $6E523EFF, $F0D9B5FF, $EFE3CCFF, $FF7864FF, $6E523EFF, $DCC8AFFF, $AA9178FF,
@@ -102,6 +147,7 @@ const
     ),
     (
       Name: 'warlord'; Title: 'Warlord'; Kind: tkImage; Square: 48; Margin: 16;
+      Sheet: (Board: 0; White: 0; Black: 0);
       Colors: (
         $160E0EFF, $FFD23C50, $FFD23C6E, $E6282882, $5AAAFF6E, $28A03CAA, $28C83CDC, $28C83CA0,
         $2E1C1CFF, $6A3C3CFF, $EBBE96FF, $EEE4E0FF, $FF7864FF, $6A3C3CFF, $DCC8C0FF, $A08880FF,

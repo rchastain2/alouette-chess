@@ -52,7 +52,7 @@ enabled=1
 uci=0
 ```
 
-- `theme`: one of `bftc` (default), `deepbasic`, `fritz`, `lanea`, `lucas`, `m484`, `owl`, `smirf`, `warlord`
+- `theme`: one of `bftc` (default), `deepbasic`, `fritz`, `lanea`, `lucas`, `m484`, `m484-classic`, `m484-gold`, `m484-slate`, `owl`, `smirf`, `warlord`
 - `scale`: the window size factor, `1` (default) for the native size. With `2`, every pixel is drawn as a 2×2 square. If the window does not fit on the screen, the largest scale that fits is used instead.
 - `path`: the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. By default, the bundled [Alouette](engine/README.md) engine, built by `make`. Leave it empty to have both sides played by humans.
 - `movetime`: the engine's thinking time per move, in milliseconds (default `1000`).
@@ -99,7 +99,7 @@ On the command line, a relative engine path is resolved from the current directo
   - `fritz`: pieces and board reproducing those of the Fritz chess program (ChessBase)
   - `lanea`: [Boardgame tiles](https://opengameart.org/content/boardgame-tiles) by Lanea Zimmerman
   - `lucas`: [Pixel chess pieces](https://opengameart.org/content/pixel-chess-pieces) by Lucas312
-  - `m484`: [M484 chess set](https://opengameart.org/content/m484-chess-set) by Master484 (CC-BY 4.0 / OGA-BY 4.0)
+  - `m484`, `m484-classic`, `m484-gold`, `m484-slate`: [M484 chess set](https://opengameart.org/content/m484-chess-set) by Master484 (CC-BY 4.0 / OGA-BY 4.0)
   - `owl`: pieces from the *OWL Chess* demo program by Borland International
   - `smirf`: [pieces](https://www.chessvariants.com/contests/10/crc.html) by Reinhard Scharnagl
   - `warlord`: pieces from the [Warlord](https://chessprogramming.org/Warlord) chess program by William H. Rogers
