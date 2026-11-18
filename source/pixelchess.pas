@@ -1794,7 +1794,7 @@ end;
 begin
   LoadConfig;
   SetupPanel;
-  if not SDL_CreateWindowAndRenderer(PAnsiChar(Concat(CAppTitle, ' ', CAppVersion)), LScale * LWidth, LScale * LHeight, 0, @LWindow, @LRenderer) then
+  if not SDL_CreateWindowAndRenderer(CAppTitle, LScale * LWidth, LScale * LHeight, 0, @LWindow, @LRenderer) then
     Fail('SDL_CreateWindowAndRenderer');
   SetWindowIcon;
   SDL_SetRenderLogicalPresentation(LRenderer, LWidth, LHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
