@@ -18,6 +18,13 @@ alouette:
 temp:
 	mkdir -p $@
 
+ICON_SOURCE := images/bftc/bb.png
+
+icon: tools/makeicon.pas tools/win3icon.pas
+	mkdir -p temp/tools
+	fpc -vq -FUtemp/tools -FEtemp/tools tools/makeicon.pas
+	temp/tools/makeicon $(ICON_SOURCE) images/pixelchess.ico images/icon.png 3
+
 ifneq ($(OS),Windows_NT)
 UNAME_S := $(shell uname -s)
 endif
@@ -49,4 +56,4 @@ clean:
 	rm -rf temp $(TARGET)
 	$(MAKE) -C engine/source distclean
 
-.PHONY: all alouette clean desktop
+.PHONY: all alouette clean desktop icon

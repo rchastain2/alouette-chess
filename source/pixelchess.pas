@@ -2,6 +2,10 @@ program pixelchess;
 
 {$mode objfpc}{$H+}
 
+{$IFDEF WINDOWS}
+{$R pixelchess.rc}
+{$ENDIF}
+
 uses
   SysUtils, Classes, IniFiles, ctypes, SDL3, SDL3_ttf, ChessTypes, ChessGame, Fen, Themes, UciEngine, PixelLog;
 
