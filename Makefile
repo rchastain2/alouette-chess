@@ -15,13 +15,14 @@ $(TARGET): source/pixelchess.pas source/*.pas source/chess/*.pas | temp
 alouette:
 	$(MAKE) -C engine
 
-temp:
-	mkdir -p $@
+temp temp/tools:
+	mkdir $@
+
+temp/tools: | temp
 
 ICON_SOURCE := images/bftc/bb.png
 
-icon: tools/makeicon.pas tools/win3icon.pas
-	mkdir -p temp/tools
+icon: tools/makeicon.pas tools/win3icon.pas | temp/tools
 	fpc -vq -FUtemp/tools -FEtemp/tools tools/makeicon.pas
 	temp/tools/makeicon $(ICON_SOURCE) images/pixelchess.ico images/icon.png 3
 
