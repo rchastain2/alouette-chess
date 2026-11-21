@@ -1,4 +1,8 @@
+{$IFDEF ANDROID}
+library pixelchess;
+{$ELSE}
 program pixelchess;
+{$ENDIF}
 
 {$mode objfpc}{$H+}
 
@@ -45,6 +49,7 @@ const
   CBuiltinEngine = 'builtin';
   CDefaultEngine = CBuiltinEngine;
   CConfigSection = 'pixelchess';
+  CDefaultLayout = {$IFDEF ANDROID}'vertical'{$ELSE}'horizontal'{$ENDIF};
 
 type
   TBoardArray = array[0..7, 0..7] of char;
@@ -541,7 +546,7 @@ begin
     LList.Add('movetime=' + IntToStr(CEngineMoveTime));
     LList.Add('sound=1');
     LList.Add('log=1');
-    LList.Add('layout=horizontal');
+    LList.Add('layout=' + CDefaultLayout);
     try
       LList.SaveToFile(APath);
     except
@@ -818,7 +823,7 @@ begin
     LMoveTimeText := Trim(LIni.ReadString(CConfigSection, 'movetime', IntToStr(CEngineMoveTime)));
     LSoundText := Trim(LIni.ReadString(CConfigSection, 'sound', '1'));
     LLogText := Trim(LIni.ReadString(CConfigSection, 'log', '1'));
-    LLayoutText := Trim(LIni.ReadString(CConfigSection, 'layout', 'horizontal'));
+    LLayoutText := Trim(LIni.ReadString(CConfigSection, 'layout', CDefaultLayout));
   finally
     LIni.Free;
   end;
@@ -2029,6 +2034,7 @@ begin
   end;
 end;
 
+procedure Run;
 begin
   LoadConfig;
   SetupPanel;
@@ -2064,4 +2070,21 @@ begin
   SDL_DestroyWindow(LWindow);
   SDL_Quit;
   WriteLog('Exit');
+end;
+
+{$IFDEF ANDROID}
+function SDL_main(argc: cint; argv: PPAnsiChar): cint; cdecl;
+begin
+  Run;
+  result := 0;
+end;
+
+exports
+  SDL_main;
+
+begin
+{$ELSE}
+begin
+  Run;
+{$ENDIF}
 end.
