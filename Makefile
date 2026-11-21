@@ -3,13 +3,14 @@ TARGET := pixelchess
 PFLAGS := -Mobjfpc -Sh
 PFLAGS += -Fu../sdl3-for-pascal/units/
 PFLAGS += -Fusource/chess/
+PFLAGS += -Fuengine/source/
 PFLAGS += -FE.
 PFLAGS += -vq
 PFLAGS += -FUtemp
 
 all: $(TARGET) alouette
 
-$(TARGET): source/pixelchess.pas source/*.pas source/chess/*.pas | temp
+$(TARGET): source/pixelchess.pas source/*.pas source/chess/*.pas engine/source/*.pas | temp
 	fpc $(PFLAGS) -o$@ $<
 
 alouette:

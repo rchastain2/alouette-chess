@@ -42,7 +42,7 @@ theme=bftc
 scale=1
 
 [engine]
-path=engine/alouette
+path=builtin
 movetime=1000
 
 [sound]
@@ -54,7 +54,7 @@ uci=0
 
 - `theme`: one of `bftc` (default), `deepbasic`, `fritz`, `lanea`, `lucas`, `m484`, `m484-classic`, `m484-gold`, `m484-slate`, `owl`, `smirf`, `warlord`
 - `scale`: the window size factor, `1` (default) for the native size. With `2`, every pixel is drawn as a 2×2 square. If the window does not fit on the screen, the largest scale that fits is used instead.
-- `path`: the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. By default, the bundled [Alouette](engine/README.md) engine, built by `make`. Leave it empty to have both sides played by humans.
+- `path`: `builtin` (default) for the bundled [Alouette](engine/README.md) engine, or the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. Leave it empty to have both sides played by humans.
 - `movetime`: the engine's thinking time per move, in milliseconds (default `1000`).
 - `enabled`: `1` (default) to play sounds, `0` to start muted.
 - `uci`: `1` to record the dialogue with the engine in the log file, `0` (default) otherwise.

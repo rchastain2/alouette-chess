@@ -6,32 +6,25 @@ interface
 procedure LoadSettings(
   out AUseBook: boolean;
   out
-  APawnMove,
-  APawnStruct,
-  ATargets,
+  AProtectedPawns,
+  AMobility,
   ACastling,
   AEnPassant,
   ACheck,
-  AProtect,
-  AAttack,
-  AMobility,
   ANewPos: integer
 );
 procedure SaveSettings(
   const AUseBook: boolean;
   const
-  APawnMove,
-  APawnStruct,
-  ATargets,
+  AProtectedPawns,
+  AMobility,
   ACastling,
   AEnPassant,
   ACheck,
-  AProtect,
-  AAttack,
-  AMobility,
   ANewPos: integer
 );
 function SettingsFileExists: boolean;
+procedure SetSettingsFile(const AFileName: string);
 
 implementation
 
@@ -48,31 +41,23 @@ var
 procedure LoadSettings(
   out AUseBook: boolean;
   out
-  APawnMove,
-  APawnStruct,
-  ATargets,
+  AProtectedPawns,
+  AMobility,
   ACastling,
   AEnPassant,
   ACheck,
-  AProtect,
-  AAttack,
-  AMobility,
   ANewPos: integer
 );
 begin
   with TIniFile.Create(LIniPath) do
   try
-    AUseBook := boolean(ReadInteger(CMain, 'usebook',    1));
-    APawnMove        := ReadInteger(CFact, 'pawnmove',   1);
-    APawnStruct      := ReadInteger(CFact, 'pawnstruct', 1);
-    ATargets         := ReadInteger(CFact, 'targets',    1);
-    ACastling        := ReadInteger(CFact, 'castling',   1);
-    AEnPassant       := ReadInteger(CFact, 'enpassant',  1);
-    ACheck           := ReadInteger(CFact, 'check',      1);
-    AProtect         := ReadInteger(CFact, 'protect',    1);
-    AAttack          := ReadInteger(CFact, 'attack',     1);
-    AMobility        := ReadInteger(CFact, 'mobility',   1);
-    ANewPos          := ReadInteger(CFact, 'newpos',     1);
+    AUseBook := boolean(ReadInteger(CMain, 'usebook',        1));
+    AProtectedPawns  := ReadInteger(CFact, 'protectedpawns', 2);
+    AMobility        := ReadInteger(CFact, 'mobility',       1);
+    ACastling        := ReadInteger(CFact, 'castling',       5);
+    AEnPassant       := ReadInteger(CFact, 'enpassant',      0);
+    ACheck           := ReadInteger(CFact, 'check',          1);
+    ANewPos          := ReadInteger(CFact, 'newpos',         10);
   finally
     Free;
   end;
@@ -81,31 +66,23 @@ end;
 procedure SaveSettings(
   const AUseBook: boolean;
   const
-  APawnMove,
-  APawnStruct,
-  ATargets,
+  AProtectedPawns,
+  AMobility,
   ACastling,
   AEnPassant,
   ACheck,
-  AProtect,
-  AAttack,
-  AMobility,
   ANewPos: integer
 );
 begin
   with TIniFile.Create(LIniPath) do
   try
-    WriteInteger(CMain, 'usebook',    Ord(AUseBook));
-    WriteInteger(CFact, 'pawnmove',   APawnMove);
-    WriteInteger(CFact, 'pawnstruct', APawnStruct);
-    WriteInteger(CFact, 'targets',    ATargets);
-    WriteInteger(CFact, 'castling',   ACastling);
-    WriteInteger(CFact, 'enpassant',  AEnPassant);
-    WriteInteger(CFact, 'check',      ACheck);
-    WriteInteger(CFact, 'protect',    AProtect);
-    WriteInteger(CFact, 'attack',     AAttack);
-    WriteInteger(CFact, 'mobility',   AMobility);
-    WriteInteger(CFact, 'newpos',     ANewPos);
+    WriteInteger(CMain, 'usebook',        Ord(AUseBook));
+    WriteInteger(CFact, 'protectedpawns', AProtectedPawns);
+    WriteInteger(CFact, 'mobility',       AMobility);
+    WriteInteger(CFact, 'castling',       ACastling);
+    WriteInteger(CFact, 'enpassant',      AEnPassant);
+    WriteInteger(CFact, 'check',          ACheck);
+    WriteInteger(CFact, 'newpos',         ANewPos);
     UpdateFile;
   finally
     Free;
@@ -115,6 +92,11 @@ end;
 function SettingsFileExists: boolean;
 begin
   result := FileExists(LIniPath);
+end;
+
+procedure SetSettingsFile(const AFileName: string);
+begin
+  LIniPath := AFileName;
 end;
 
 begin

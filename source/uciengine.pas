@@ -11,6 +11,7 @@ type
   TUciEngine = class
   private
     FProcess: PSDL_Process;
+    FThread: TThread;
     FInput, FOutput: PSDL_IOStream;
     FBuffer: string;
     FThinking: boolean;
@@ -20,8 +21,10 @@ type
     procedure Send(const ALine: string);
     procedure Sync;
     function ReadLine(out ALine: string): boolean;
+    function ReadProcessLine(out ALine: string): boolean;
   public
     constructor Create(const AExecutable, AWorkingDir: string);
+    constructor CreateBuiltin(const AConfigFile, ABookDir: string);
     destructor Destroy; override;
     procedure SetOption(const AName, AValue: string);
     procedure NewGame;
@@ -34,6 +37,94 @@ type
   end;
 
 implementation
+
+uses
+  Uci;
+
+type
+  TBuiltinThread = class(TThread)
+  private
+    FConfigFile, FBookDir: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const AConfigFile, ABookDir: string);
+  end;
+
+var
+  LLock: TRTLCriticalSection;
+  LInputEvent: PRTLEvent;
+  LInputLines, LOutputLines: TStringList;
+
+function BuiltinReadLine(out ALine: string): boolean;
+begin
+  result := TRUE;
+  repeat
+    EnterCriticalSection(LLock);
+    try
+      if LInputLines.Count > 0 then
+      begin
+        ALine := LInputLines[0];
+        LInputLines.Delete(0);
+        exit;
+      end;
+    finally
+      LeaveCriticalSection(LLock);
+    end;
+    RTLEventWaitFor(LInputEvent, 100);
+  until FALSE;
+end;
+
+procedure BuiltinWriteLine(const ALine: string);
+var
+  LLine: string;
+begin
+  EnterCriticalSection(LLock);
+  try
+    for LLine in ALine.Split([#13#10, #10]) do
+      LOutputLines.Add(LLine);
+  finally
+    LeaveCriticalSection(LLock);
+  end;
+end;
+
+procedure PushInputLine(const ALine: string);
+begin
+  EnterCriticalSection(LLock);
+  try
+    LInputLines.Add(ALine);
+  finally
+    LeaveCriticalSection(LLock);
+  end;
+  RTLEventSetEvent(LInputEvent);
+end;
+
+function PopOutputLine(out ALine: string): boolean;
+begin
+  EnterCriticalSection(LLock);
+  try
+    result := LOutputLines.Count > 0;
+    if result then
+    begin
+      ALine := LOutputLines[0];
+      LOutputLines.Delete(0);
+    end;
+  finally
+    LeaveCriticalSection(LLock);
+  end;
+end;
+
+constructor TBuiltinThread.Create(const AConfigFile, ABookDir: string);
+begin
+  inherited Create(TRUE);
+  FConfigFile := AConfigFile;
+  FBookDir := ABookDir;
+end;
+
+procedure TBuiltinThread.Execute;
+begin
+  RunUci(FConfigFile, FBookDir, FALSE, @BuiltinReadLine, @BuiltinWriteLine);
+end;
 
 constructor TUciEngine.Create(const AExecutable, AWorkingDir: string);
 var
@@ -61,10 +152,34 @@ begin
   Send('uci');
 end;
 
+constructor TUciEngine.CreateBuiltin(const AConfigFile, ABookDir: string);
+begin
+  inherited Create;
+  EnterCriticalSection(LLock);
+  try
+    LInputLines.Clear;
+    LOutputLines.Clear;
+  finally
+    LeaveCriticalSection(LLock);
+  end;
+  FThread := TBuiltinThread.Create(AConfigFile, ABookDir);
+  FThread.Start;
+  Send('uci');
+end;
+
 destructor TUciEngine.Destroy;
 var
   i: integer;
 begin
+  if FThread <> nil then
+  begin
+    if not FThread.Finished then
+      Send('quit');
+    while not FThread.Finished do
+      SDL_Delay(1);
+    FThread.WaitFor;
+    FThread.Free;
+  end;
   if (FProcess <> nil) and Running then
   begin
     Send('quit');
@@ -91,6 +206,11 @@ var
 begin
   if LogUci then
     WriteLog('> ' + ALine);
+  if FThread <> nil then
+  begin
+    PushInputLine(ALine);
+    exit;
+  end;
   LLine := ALine + #10;
   SDL_WriteIO(FInput, PAnsiChar(LLine), Length(LLine));
   SDL_FlushIO(FInput);
@@ -103,6 +223,16 @@ begin
 end;
 
 function TUciEngine.ReadLine(out ALine: string): boolean;
+begin
+  if FThread <> nil then
+    result := PopOutputLine(ALine)
+  else
+    result := ReadProcessLine(ALine);
+  if result and LogUci then
+    WriteLog('< ' + ALine);
+end;
+
+function TUciEngine.ReadProcessLine(out ALine: string): boolean;
 var
   LChunk: array[0..4095] of char;
   LCount: csize_t;
@@ -123,8 +253,6 @@ begin
     exit;
   ALine := TrimRight(Copy(FBuffer, 1, LPos - 1));
   Delete(FBuffer, 1, LPos);
-  if LogUci then
-    WriteLog('< ' + ALine);
 end;
 
 procedure TUciEngine.SetOption(const AName, AValue: string);
@@ -193,9 +321,23 @@ end;
 
 function TUciEngine.Running: boolean;
 begin
+  if FThread <> nil then
+    exit(not FThread.Finished);
   if not FExited then
     FExited := SDL_WaitProcess(FProcess, FALSE, nil);
   result := not FExited;
 end;
+
+initialization
+  InitCriticalSection(LLock);
+  LInputEvent := RTLEventCreate;
+  LInputLines := TStringList.Create;
+  LOutputLines := TStringList.Create;
+
+finalization
+  LOutputLines.Free;
+  LInputLines.Free;
+  RTLEventDestroy(LInputEvent);
+  DoneCriticalSection(LLock);
 
 end.

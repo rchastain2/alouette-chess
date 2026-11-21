@@ -17,15 +17,11 @@ type
 function GetBestMove(const APos: TPosition; const AChess960: boolean; const ATime: integer; var AMove: string; const ARandom: boolean = FALSE; const ADepth: integer = 0): string;
 
 var
-  LFactorPawnMove,
-  LFactorPawnStruct,
-  LFactorTargets,
+  LFactorProtectedPawns,
+  LFactorMobility,
   LFactorCastling,
   LFactorEnPassant,
   LFactorCheck,
-  LFactorProtect,
-  LFactorAttack,
-  LFactorPawnMobil,
   LFactorNewPos: integer;
   LStop: boolean = FALSE;
   LInfoProc: TInfoProc = nil;
@@ -33,10 +29,11 @@ var
 implementation
 
 uses
-  SysUtils, Math, Move, MoveGen, Castling, Board, Bitboards, History{$IFDEF LOG_BEST}, Journal{$ENDIF}, PST;
+  SysUtils, Move, MoveGen, Castling, Board, Bitboards, History{$IFDEF LOG_BEST}, Journal{$ENDIF}, PST;
 
 var
   LEndTime: qword;
+  LTimeCheck: boolean;
 {$IFDEF LOG_BEST}
   LLog: TLog;
 {$ENDIF}
@@ -46,7 +43,7 @@ type
 
 function TimeIsUp: boolean;
 begin
-  result := LStop or (GetTickCount64 >= LEndTime);
+  result := LTimeCheck and (LStop or (GetTickCount64 >= LEndTime));
 end;
 
 function LegalityScore(const APos: TPosition; const AMove: TMove): integer;
@@ -67,6 +64,7 @@ const
   CMin = -1 * CMax;
   CMate = 90000;
   CMaxDepth = 64;
+  CMinDepth = 2;
   CPieceValue: array[ptWhitePawn..ptQueen] of integer = (100, 100, 500, 320, 330, 900);
   
 function MaterialAdvantage(const APos: TPosition): integer;
@@ -167,13 +165,13 @@ begin
       result := 0;
 end;
 
-function SearchMove(const APos: TPosition; const AMove: TMove; const ADepth: integer): integer;
+function SearchMove(const APos: TPosition; const AMove: TMove; const ADepth, AAlpha: integer): integer;
 var
   LPos: TPosition;
 begin
   LPos := APos;
   if DoMove(LPos, AMove) then
-    result := -AlphaBeta(LPos, ADepth - 1, CMin, CMax)
+    result := -AlphaBeta(LPos, ADepth - 1, CMin, -AAlpha)
   else
     result := CMin;
 end;
@@ -183,10 +181,11 @@ const
   CCaptureRank: array[ptWhitePawn..ptKing] of integer = (1, 1, 4, 2, 3, 5, 6);
 var
   LFr, LTo: integer;
+  LKingTo: integer;
   LPieceType, LCapturedPieceType: TWidePieceType;
   LMoveType: TMoveTypeSet;
   LPos: TPosition;
-  LCastling, LEnPassant, LCheck, LTargets, LProtect, LAttack, LPawnStruct, LPawnMobil, LPawnMove, LNewPos, LCapture: integer;
+  LCastling, LEnPassant, LCheck, LMobility, LProtectedPawns, LNewPos, LCapture: integer;
 {$IFDEF LOG_BEST}
   LMoveStr: string;
 {$ENDIF}
@@ -194,12 +193,18 @@ var
 begin
   DecodeMove(AMove, LFr, LTo, LPieceType, LMoveType);
   
-  LPawnMove := Ord(LPieceType in [ptWhitePawn, ptBlackPawn]);
+  if mtCastling in LMoveType then
+    if LTo mod 8 > LFr mod 8 then
+      LKingTo := ToIndex(CColG, LTo div 8)
+    else
+      LKingTo := ToIndex(CColC, LTo div 8)
+  else
+    LKingTo := LTo;
   
   LPST := 0;
   if APos.Side then
     case LPieceType of
-      ptKing:      LPST := PST_BK[LTo] - PST_BK[LFr];
+      ptKing:      LPST := PST_BK[LKingTo] - PST_BK[LFr];
       ptRook:      LPST := PST_BR[LTo] - PST_BR[LFr];
       ptQueen:     LPST := PST_BQ[LTo] - PST_BQ[LFr];
       ptKnight:    LPST := PST_BN[LTo] - PST_BN[LFr];
@@ -208,7 +213,7 @@ begin
     end
   else
     case LPieceType of
-      ptKing:      LPST := PST_WK[LTo] - PST_WK[LFr];
+      ptKing:      LPST := PST_WK[LKingTo] - PST_WK[LFr];
       ptRook:      LPST := PST_WR[LTo] - PST_WR[LFr];
       ptQueen:     LPST := PST_WQ[LTo] - PST_WQ[LFr];
       ptKnight:    LPST := PST_WN[LTo] - PST_WN[LFr];
@@ -216,39 +221,32 @@ begin
       ptWhitePawn: LPST := PST_WP[LTo] - PST_WP[LFr];
     end;
   if mtPromotion in LMoveType then
-    LPST := 0
-  else
-    LPST := Sign(LPST);
+    LPST := 0;
   
   LCastling := Ord(mtCastling in LMoveType);
   LEnPassant := Ord(mtEnPassant in LMoveType);
   
-  if mtEnPassant in LMoveType then
-    LCapture := 1
-  else if mtCapture in LMoveType then
+  if mtCapture in LMoveType then
   begin
-    LCapturedPieceType := PieceTypeIdx(APos, LTo);
+    if mtEnPassant in LMoveType then
+      LCapturedPieceType := LPieceType
+    else
+      LCapturedPieceType := PieceTypeIdx(APos, LTo);
     LCapture := CCaptureRank[LCapturedPieceType] - CCaptureRank[LPieceType] + CCaptureRank[ptKing];
   end else
     LCapture := 0;
   
   LCheck := 0;
-  LProtect := 0;
-  LAttack := 0;
-  LPawnStruct := 0;
-  LTargets := 0;
-  LPawnMobil := 0;
+  LProtectedPawns := 0;
+  LMobility := 0;
   LNewPos := 0;
   LPos := APos;
   if DoMove(LPos, AMove) then
   begin
     LCheck := Ord(IsCheck(LPos));
     LPos.Side := not LPos.Side;
-    LProtect := 0;
-    LAttack := 0;
-    LPawnStruct := PawnStruct(LPos);
-    LTargets := {CountTargets(LPos)}0;
-    LPawnMobil := {PawnMovesCount(LPos)}0;
+    LProtectedPawns := ProtectedPawns(LPos);
+    LMobility := Mobility(LPos);
     LPos.Side := not LPos.Side;
     LNewPos := Ord(not FindInHistory(LPos));
   end else
@@ -256,35 +254,27 @@ begin
 {$IFDEF LOG_BEST}
   LMoveStr := MoveToStr(AMove);
 {$ENDIF}
-  LPawnMove   := LFactorPawnMove   * LPawnMove;
-  LCastling   := LFactorCastling   * LCastling;
-  LEnPassant  := LFactorEnPassant  * LEnPassant;
-  LCheck      := LFactorCheck      * LCheck;
-  LProtect    := LFactorProtect    * LProtect;
-  LAttack     := LFactorAttack     * LAttack;
-  LTargets    := LFactorTargets    * LTargets;
-  LPawnStruct := LFactorPawnStruct * LPawnStruct;
-  LPawnMobil  := LFactorPawnMobil  * LPawnMobil;
-  LNewPos     := LFactorNewPos     * LNewPos;
+  LCastling       := LFactorCastling       * LCastling;
+  LEnPassant      := LFactorEnPassant      * LEnPassant;
+  LCheck          := LFactorCheck          * LCheck;
+  LMobility       := LFactorMobility       * LMobility;
+  LProtectedPawns := LFactorProtectedPawns * LProtectedPawns;
+  LNewPos         := LFactorNewPos         * LNewPos;
   
 {$IFDEF LOG_BEST}
   LLog.LogLn(Format(
-    '| %-5s |  %d  |  %d  |  %d  |  %d  |  %2d |  %2d |  %2d |',
-    [LMoveStr, LCastling, LEnPassant, LCheck, LNewPos, LPST, LPawnStruct, LCapture]
+    '| %-5s | %4d | %4d | %4d | %4d | %4d | %4d | %4d | %4d |',
+    [LMoveStr, LCastling, LEnPassant, LCheck, LNewPos, LPST, LProtectedPawns, LCapture, LMobility]
   ));
 {$ENDIF}
   
   result :=
     LPST
-  + LPawnMove
   + LCastling
   + LEnPassant
   + LCheck
-  + LProtect
-  + LAttack
-  + LTargets
-  + LPawnStruct
-  + LPawnMobil
+  + LMobility
+  + LProtectedPawns
   + LNewPos
   + LCapture
   ;
@@ -339,6 +329,28 @@ var
   LScores: array[0..255] of integer;
   LCount: integer;
   LStartTime: qword;
+  LDoneDepth, LDoneScore: integer;
+
+  function ScoreToStr(const AScore, ADepth: integer): string;
+  var
+    LPlies: integer;
+  begin
+    if Abs(AScore) >= CMate then
+    begin
+      LPlies := ADepth - (Abs(AScore) - CMate);
+      if AScore > 0 then
+        result := Format('mate %d', [Succ(LPlies) div 2])
+      else
+        result := Format('mate %d', [-(LPlies div 2)]);
+    end else
+      result := Format('cp %d', [AScore]);
+  end;
+
+  procedure SendInfo(const ADepth, AScore: integer; const AMoveStr: string);
+  begin
+    if Assigned(LInfoProc) then
+      LInfoProc(Format('info depth %d score %s time %d pv %s', [ADepth, ScoreToStr(AScore, ADepth), GetTickCount64 - LStartTime, AMoveStr]));
+  end;
 
   procedure SelectBestMoves;
   var
@@ -367,34 +379,23 @@ var
   procedure IterativeSearch;
   var
     LDepth, LMaxDepth, i: integer;
+    LBestScore: integer;
     LDepthScores: array[0..255] of integer;
     LComplete: boolean;
 
-    procedure SendInfo;
+    procedure SendDepthInfo;
     var
-      LBest, LPlies, j: integer;
+      LBest, j: integer;
       LMove: TMove;
-      LScoreStr: string;
     begin
-      if not Assigned(LInfoProc) then
-        Exit;
       LBest := 0;
       for j := 1 to Pred(LCount) do
         if LScores[j] > LScores[LBest] then
           LBest := j;
-      if Abs(LScores[LBest]) >= CMate then
-      begin
-        LPlies := LDepth - (Abs(LScores[LBest]) - CMate);
-        if LScores[LBest] > 0 then
-          LScoreStr := Format('mate %d', [Succ(LPlies) div 2])
-        else
-          LScoreStr := Format('mate %d', [-(LPlies div 2)]);
-      end else
-        LScoreStr := Format('cp %d', [LScores[LBest]]);
       LMove := LMoves[LBest];
       if IsCastling(APos, LMove) and not AChess960 then
         RenameCastling(LMove);
-      LInfoProc(Format('info depth %d score %s time %d pv %s', [LDepth, LScoreStr, GetTickCount64 - LStartTime, MoveToStr(LMove)]));
+      SendInfo(LDepth, LScores[LBest], MoveToStr(LMove));
     end;
 
   begin
@@ -408,15 +409,14 @@ var
 
     LDepth := 1;
     repeat
+      LTimeCheck := LDepth > CMinDepth;
       LComplete := TRUE;
+      LBestScore := CMin;
       for i := 0 to Pred(LCount) do
       begin
-       {if GetTickCount64 >= LEndTime then
-        begin
-          LComplete := FALSE;
-          Break;
-        end;}
-        LDepthScores[i] := SearchMove(APos, LMoves[i], LDepth);
+        LDepthScores[i] := SearchMove(APos, LMoves[i], LDepth, LBestScore - 1);
+        if LDepthScores[i] > LBestScore then
+          LBestScore := LDepthScores[i];
         if TimeIsUp then
         begin
           LComplete := FALSE;
@@ -427,12 +427,15 @@ var
       begin
         for i := 0 to Pred(LCount) do
           LScores[i] := LDepthScores[i];
-        SendInfo;
+        SendDepthInfo;
+        SortMoves(LMoves, LScores, LCount);
         Inc(LDepth);
       end;
     until not LComplete or (LDepth > LMaxDepth);
 
     SelectBestMoves;
+    LDoneDepth := Pred(LDepth);
+    LDoneScore := LScores[0];
   end;
 
 begin
@@ -456,9 +459,11 @@ begin
     Exit(AMove);
   IterativeSearch;
 {$IFDEF LOG_BEST}
-  LLog.LogLn('| Move  | Cast | EnPa | Chec | NewP | PST  | Stru | Capt |');
+  LLog.LogLn('| Move  | O-O  | e.p. | Chk  | New  | PST  | PPro | Capt | Mob  |');
 {$ENDIF}
   Evaluate(@TieBreakScore);
+  if LDoneDepth > 0 then
+    SendInfo(LDoneDepth, LDoneScore, AMove);
 {$IFDEF LOG_BEST}
   LLog.UpdateFile;
 {$ENDIF}

@@ -17,25 +17,19 @@ function GenerateMoves(const APos: TPosition; var AList: array of TMove; out ACo
 function GenerateMoves(const APos: TPosition): TBoard; overload;
 {** Nombre de coups possibles. }
 function GetMovesCount(const APos: TPosition): integer;
-(*
-{** Nombre de coups de pion possibles. }
-function PawnMovesCount(const APos: TPosition): integer;
-*)
 {** Cases pouvant être prises par les pions. }
 function PotentialPawnCaptures(const APos: TPosition): TBoard;
 {** Pour savoir si le joueur est en échec. }
 function IsCheck(const APos: TPosition): boolean;
-(*
 {** Nombre de cases accessibles. }
-function CountTargets(const APos: TPosition): integer;
-*)
-{** Disposition des pions. }
-function PawnStruct(const APos: TPosition): integer;
+function Mobility(const APos: TPosition): integer;
+{** Nombre de pions protégés par un pion. }
+function ProtectedPawns(const APos: TPosition): integer;
 
 implementation
 
 uses
-  SysUtils, Bitboards{, Journal};
+  SysUtils, Bitboards, Move{, Journal};
 
 function GenerateMoves(const APos: TPosition; var AList: array of TMove; out ACount: integer; const AQuick: boolean; const ExtraPawnMoves: boolean): TBoard;
 var
@@ -226,21 +220,6 @@ begin
   GenerateMoves(APos, LList, result, TRUE);
 end;
 
-(*
-function PawnMovesCount(const APos: TPosition): integer;
-var
-  LList: array[byte] of integer;
-  LCount, i: integer;
-begin
-  Initialize(LList);
-  GenerateMoves(APos, LList, LCount);
-  result := 0;
-  for i := 0 to Pred(LCount) do
-    if PieceType(LList[i]) in [ptWhitePawn, ptBlackPawn] then
-      Inc(result);
-end;
-*)
-
 function PotentialPawnCaptures(const APos: TPosition): TBoard;
 var
   LPawnType: TPieceType;
@@ -278,8 +257,7 @@ begin
   result := (GenerateMoves(LPos) and LPos.Kings) <> 0;
 end;
 
-(*
-function CountTargets(const APos: TPosition): integer;
+function Mobility(const APos: TPosition): integer;
 var
   LFr, LTo: integer;
   LPieceType: TPieceType;
@@ -304,9 +282,8 @@ begin
         end;
   end;
 end;
-*)
 
-function PawnStruct(const APos: TPosition): integer;
+function ProtectedPawns(const APos: TPosition): integer;
 var
   LActivePawns: TBoard;
   i, j, k: integer;

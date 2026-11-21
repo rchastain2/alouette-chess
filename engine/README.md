@@ -20,11 +20,30 @@ This format has been previously used by Marc-Philippe Huget in his engine [La Da
 
 ## Random mode
 
-If you call the engine with the option `-r` or `--random`, it will play pure random moves. 
+If you call the engine with the option `-r` or `--random`, it will play pure random moves.
+
+## Settings
+
+If it does not exist, *Alouette* creates a file `alouette.cfg` next to the executable when it exits.
+
+    [main]
+    usebook=1
+
+    [factors]
+    protectedpawns=2
+    mobility=1
+    castling=5
+    enpassant=0
+    check=1
+    newpos=10
+
+`usebook` enables the opening book. The factors weight the criteria used to choose between moves of equal value.
+
+Since version 0.2.1, some keys have been renamed or removed. If you have an older file, delete it and let the engine create a new one.
 
 ## Author
 
-*Alouette* is an open source program ([0BSD license](https://opensource.org/license/0bsd)) written for the Free Pascal Compiler by Roland Chastain.
+*Alouette* is free software, released under the [GNU General Public License](LICENSE), version 3 or any later version, and written for the Free Pascal Compiler by Roland Chastain.
 
 ## Name
 

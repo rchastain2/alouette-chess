@@ -7,6 +7,9 @@ program pixelchess;
 {$ENDIF}
 
 uses
+{$IFDEF UNIX}
+  CThreads,
+{$ENDIF}
   SysUtils, Classes, IniFiles, ctypes, SDL3, SDL3_ttf, ChessTypes, ChessGame, Fen, Themes, UciEngine, PixelLog;
 
 const
@@ -36,7 +39,8 @@ const
   CLogFile = 'pixelchess.log';
   CDefaultTheme = 'bftc';
   CDefaultScale = 1;
-  CDefaultEngine = 'engine/alouette'{$IFDEF WINDOWS} + '.exe'{$ENDIF};
+  CBuiltinEngine = 'builtin';
+  CDefaultEngine = CBuiltinEngine;
 
 type
   TBoardArray = array[0..7, 0..7] of char;
@@ -403,6 +407,13 @@ procedure StartEngine(const APath: string);
 var
   LPath: string;
 begin
+  if APath = CBuiltinEngine then
+  begin
+    WriteLog('Starting built-in engine');
+    LEngine := TUciEngine.CreateBuiltin(Concat(SDL_GetBasePath, 'engine/alouette.cfg'), Concat(SDL_GetBasePath, 'engine/'));
+    LEngineName := 'Alouette';
+    exit;
+  end;
   LPath := APath;
   if (ExtractFileDrive(LPath) = '') and not (LPath[1] in AllowDirectorySeparators) then
     LPath := Concat(SDL_GetBasePath, LPath);
@@ -462,7 +473,7 @@ begin
   WriteLn(CUsage);
   WriteLn('  --theme=NAME, -t NAME    graphical theme: ', ThemeNames);
   WriteLn('  --scale=N, -s N          window scale factor, limited by the screen size');
-  WriteLn('  --engine=PATH, -e PATH   UCI engine; an empty path disables the engine');
+  WriteLn('  --engine=PATH, -e PATH   UCI engine, or builtin for the bundled Alouette; an empty path disables the engine');
   WriteLn('  --movetime=MS, -m MS     engine thinking time per move, in milliseconds');
   WriteLn('  --fen=FEN, -f FEN        start position');
   WriteLn('  --help, -h               show this help');
@@ -653,7 +664,7 @@ begin
       AScale := LValue
     else if TryOption('--engine', '-e', LValue) then
     begin
-      if LValue <> '' then
+      if (LValue <> '') and (LValue <> CBuiltinEngine) then
         LValue := ExpandFileName(LValue);
       AEnginePath := LValue;
     end
