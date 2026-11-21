@@ -5,7 +5,7 @@ unit PixelLog;
 interface
 
 var
-  LogUci: boolean = FALSE;
+  LogLevel: integer = 1;
 
 procedure OpenLog(const APath: string);
 procedure WriteLog(const AText: string);

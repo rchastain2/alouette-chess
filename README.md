@@ -37,27 +37,21 @@ On Linux, `make desktop` adds a launcher to your desktop.
 The theme, the window size and the computer opponent are set in `pixelchess.ini`, next to the executable:
 
 ```ini
-[display]
+[pixelchess]
 theme=bftc
 scale=1
-
-[engine]
-path=builtin
+engine=builtin
 movetime=1000
-
-[sound]
-enabled=1
-
-[log]
-uci=0
+sound=1
+log=1
 ```
 
 - `theme`: one of `bftc` (default), `deepbasic`, `fritz`, `lanea`, `lucas`, `m484`, `m484-classic`, `m484-gold`, `m484-slate`, `owl`, `smirf`, `warlord`
 - `scale`: the window size factor, `1` (default) for the native size. With `2`, every pixel is drawn as a 2×2 square. If the window does not fit on the screen, the largest scale that fits is used instead.
-- `path`: `builtin` (default) for the bundled [Alouette](engine/README.md) engine, or the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. Leave it empty to have both sides played by humans.
+- `engine`: `builtin` (default) for the bundled [Alouette](engine/README.md) engine, or the executable of a UCI engine, absolute or relative to the directory of `pixelchess`. Leave it empty to have both sides played by humans.
 - `movetime`: the engine's thinking time per move, in milliseconds (default `1000`).
-- `enabled`: `1` (default) to play sounds, `0` to start muted.
-- `uci`: `1` to record the dialogue with the engine in the log file, `0` (default) otherwise.
+- `sound`: `1` (default) to play sounds, `0` to start muted.
+- `log`: `0` for no log file, `1` (default) for a simple log in `pixelchess.log`, `2` to also record the dialogue with the engine.
 
 If the file is missing, it is created with the default values.
 
@@ -69,6 +63,7 @@ These settings can also be given on the command line, which overrides `pixelches
 ./pixelchess --engine=/usr/games/stockfish --movetime=3000
 ./pixelchess -e ../engines/ct800 -m 500 -t m484
 ./pixelchess --engine=
+./pixelchess --sound=0 --log=2
 ./pixelchess --fen="4k3/8/8/8/8/8/8/4K2R w K - 0 1"
 ./pixelchess --help
 ```

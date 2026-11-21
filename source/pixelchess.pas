@@ -41,6 +41,7 @@ const
   CDefaultScale = 1;
   CBuiltinEngine = 'builtin';
   CDefaultEngine = CBuiltinEngine;
+  CConfigSection = 'pixelchess';
 
 type
   TBoardArray = array[0..7, 0..7] of char;
@@ -441,19 +442,13 @@ var
 begin
   LList := TStringList.Create;
   try
-    LList.Add('[display]');
+    LList.Add('[' + CConfigSection + ']');
     LList.Add('theme=' + CDefaultTheme);
     LList.Add('scale=' + IntToStr(CDefaultScale));
-    LList.Add('');
-    LList.Add('[engine]');
-    LList.Add('path=' + CDefaultEngine);
+    LList.Add('engine=' + CDefaultEngine);
     LList.Add('movetime=' + IntToStr(CEngineMoveTime));
-    LList.Add('');
-    LList.Add('[sound]');
-    LList.Add('enabled=1');
-    LList.Add('');
-    LList.Add('[log]');
-    LList.Add('uci=0');
+    LList.Add('sound=1');
+    LList.Add('log=1');
     try
       LList.SaveToFile(APath);
     except
@@ -466,7 +461,7 @@ begin
 end;
 
 const
-  CUsage = 'Usage: pixelchess [-t NAME] [-s N] [-e PATH] [-m MS] [-f FEN] [-h]';
+  CUsage = 'Usage: pixelchess [-t NAME] [-s N] [-e PATH] [-m MS] [--sound=0|1] [--log=0|1|2] [-f FEN] [-h]';
 
 procedure PrintUsage;
 begin
@@ -475,6 +470,8 @@ begin
   WriteLn('  --scale=N, -s N          window scale factor, limited by the screen size');
   WriteLn('  --engine=PATH, -e PATH   UCI engine, or builtin for the bundled Alouette; an empty path disables the engine');
   WriteLn('  --movetime=MS, -m MS     engine thinking time per move, in milliseconds');
+  WriteLn('  --sound=0|1              start muted (0) or with sounds (1)');
+  WriteLn('  --log=0|1|2              no log (0), simple log (1), log with the UCI dialogue (2)');
   WriteLn('  --fen=FEN, -f FEN        start position');
   WriteLn('  --help, -h               show this help');
 end;
@@ -625,7 +622,7 @@ begin
     result := LStartFen;
 end;
 
-procedure ParseCommandLine(var AThemeName, AScale, AEnginePath, AMoveTime, AFen: string);
+procedure ParseCommandLine(var AThemeName, AScale, AEnginePath, AMoveTime, ASound, ALog, AFen: string);
 var
   i: integer;
   LArg: string;
@@ -635,7 +632,7 @@ var
     result := TRUE;
     if Pos(ALong + '=', LArg) = 1 then
       AValue := Trim(Copy(LArg, Length(ALong) + 2, MaxInt))
-    else if (LArg = ALong) or (LArg = AShort) then
+    else if (LArg = ALong) or ((AShort <> '') and (LArg = AShort)) then
     begin
       if i = ParamCount then
         UsageError('Missing value after ' + LArg + '.');
@@ -670,6 +667,10 @@ begin
     end
     else if TryOption('--movetime', '-m', LValue) then
       AMoveTime := LValue
+    else if TryOption('--sound', '', LValue) then
+      ASound := LValue
+    else if TryOption('--log', '', LValue) then
+      ALog := LValue
     else if TryOption('--fen', '-f', LValue) then
       AFen := LValue
     else
@@ -707,32 +708,49 @@ end;
 procedure LoadConfig;
 var
   LIni: TIniFile;
-  LPath, LThemeName, LScaleText, LEnginePath, LMoveTimeText, LFen: string;
+  LPath, LThemeName, LScaleText, LEnginePath, LMoveTimeText, LSoundText, LLogText, LFen: string;
   LVersion: integer;
 begin
-  OpenLog(Concat(SDL_GetBasePath, CLogFile));
+  LPath := Concat(SDL_GetBasePath, CConfigFile);
+  if not FileExists(LPath) then
+    CreateDefaultConfig(LPath);
+  LIni := TIniFile.Create(LPath);
+  try
+    LThemeName := Trim(LIni.ReadString(CConfigSection, 'theme', CDefaultTheme));
+    LScaleText := Trim(LIni.ReadString(CConfigSection, 'scale', IntToStr(CDefaultScale)));
+    LEnginePath := Trim(LIni.ReadString(CConfigSection, 'engine', ''));
+    LMoveTimeText := Trim(LIni.ReadString(CConfigSection, 'movetime', IntToStr(CEngineMoveTime)));
+    LSoundText := Trim(LIni.ReadString(CConfigSection, 'sound', '1'));
+    LLogText := Trim(LIni.ReadString(CConfigSection, 'log', '1'));
+  finally
+    LIni.Free;
+  end;
+  LFen := '';
+  ParseCommandLine(LThemeName, LScaleText, LEnginePath, LMoveTimeText, LSoundText, LLogText, LFen);
+  if LSoundText = '' then
+    LSoundEnabled := TRUE
+  else if (LSoundText = '0') or (LSoundText = '1') then
+    LSoundEnabled := LSoundText = '1'
+  else
+  begin
+    Report(Concat('Invalid sound value: ', LSoundText, '. Expected 0 or 1.'));
+    Halt(1);
+  end;
+  if LLogText = '' then
+    LogLevel := 1
+  else if not TryStrToInt(LLogText, LogLevel) or (LogLevel < 0) or (LogLevel > 2) then
+  begin
+    Report(Concat('Invalid log level: ', LLogText, '. Expected 0, 1 or 2.'));
+    Halt(1);
+  end;
+  if LogLevel >= 1 then
+    OpenLog(Concat(SDL_GetBasePath, CLogFile));
   WriteLog(Concat(CAppTitle, ' ', CAppVersion));
   WriteLog(Format('Built %s %s with FPC %s for %s-%s', [{$I %DATE%}, {$I %TIME%}, {$I %FPCVERSION%}, {$I %FPCTARGETCPU%}, {$I %FPCTARGETOS%}]));
   LVersion := SDL_GetVersion;
   WriteLog(Format('SDL %d.%d.%d', [SDL_VERSIONNUM_MAJOR(LVersion), SDL_VERSIONNUM_MINOR(LVersion), SDL_VERSIONNUM_MICRO(LVersion)]));
   LVersion := TTF_Version;
   WriteLog(Format('SDL_ttf %d.%d.%d', [SDL_VERSIONNUM_MAJOR(LVersion), SDL_VERSIONNUM_MINOR(LVersion), SDL_VERSIONNUM_MICRO(LVersion)]));
-  LPath := Concat(SDL_GetBasePath, CConfigFile);
-  if not FileExists(LPath) then
-    CreateDefaultConfig(LPath);
-  LIni := TIniFile.Create(LPath);
-  try
-    LThemeName := Trim(LIni.ReadString('display', 'theme', CDefaultTheme));
-    LScaleText := Trim(LIni.ReadString('display', 'scale', IntToStr(CDefaultScale)));
-    LEnginePath := Trim(LIni.ReadString('engine', 'path', ''));
-    LMoveTimeText := Trim(LIni.ReadString('engine', 'movetime', IntToStr(CEngineMoveTime)));
-    LSoundEnabled := LIni.ReadBool('sound', 'enabled', TRUE);
-    LogUci := LIni.ReadBool('log', 'uci', FALSE);
-  finally
-    LIni.Free;
-  end;
-  LFen := '';
-  ParseCommandLine(LThemeName, LScaleText, LEnginePath, LMoveTimeText, LFen);
   if LScaleText = '' then
     LScale := CDefaultScale
   else if not TryStrToInt(LScaleText, LScale) or (LScale < 1) then

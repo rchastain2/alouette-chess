@@ -204,7 +204,7 @@ procedure TUciEngine.Send(const ALine: string);
 var
   LLine: string;
 begin
-  if LogUci then
+  if LogLevel >= 2 then
     WriteLog('> ' + ALine);
   if FThread <> nil then
   begin
@@ -228,7 +228,7 @@ begin
     result := PopOutputLine(ALine)
   else
     result := ReadProcessLine(ALine);
-  if result and LogUci then
+  if result and (LogLevel >= 2) then
     WriteLog('< ' + ALine);
 end;
 
