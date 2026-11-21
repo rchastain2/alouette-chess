@@ -25,6 +25,9 @@ const
   CListY = 66;
   CLineHeight = 13;
   CHelpStep = 12;
+  CButtonColumns = 3;
+  CButtonHeight = 28;
+  CButtonGap = 4;
   CSheetPieceSize = 26;
   CSheetPieceStep = 27;
   CSheetPiecesX = 185;
@@ -78,6 +81,8 @@ var
   LSquare, LMargin, LBoardSize, LWidth, LHeight, LDotSize: integer;
   LPieceTop, LPopupX, LPopupY, LPopupW, LPopupH: integer;
   LHelpSepY, LHelpY, LMaxLines: integer;
+  LPanelX, LPanelY, LPanelW, LPanelH, LButtonY: integer;
+  LVertical: boolean = FALSE;
   LFramedBoard: boolean;
   LBoardTexture: PSDL_Texture;
   LPieceTextures: array[0..11] of PSDL_Texture;
@@ -406,8 +411,21 @@ begin
   LSquare := LTheme.Square;
   LMargin := LTheme.Margin;
   LBoardSize := 8 * LSquare + 2 * LMargin;
-  LWidth := LBoardSize + CPanelWidth;
-  LHeight := LBoardSize;
+  if LVertical then
+  begin
+    LPanelX := 0;
+    LPanelY := LBoardSize;
+    LPanelW := LBoardSize;
+    LPanelH := LBoardSize * 11 div 9;
+  end else
+  begin
+    LPanelX := LBoardSize;
+    LPanelY := 0;
+    LPanelW := CPanelWidth;
+    LPanelH := LBoardSize;
+  end;
+  LWidth := LPanelX + LPanelW;
+  LHeight := LPanelY + LPanelH;
   LDotSize := 2 * (LSquare div 8);
 end;
 
@@ -456,6 +474,7 @@ begin
     LList.Add('movetime=' + IntToStr(CEngineMoveTime));
     LList.Add('sound=1');
     LList.Add('log=1');
+    LList.Add('layout=horizontal');
     try
       LList.SaveToFile(APath);
     except
@@ -468,7 +487,7 @@ begin
 end;
 
 const
-  CUsage = 'Usage: pixelchess [-t NAME] [-s N] [-e PATH] [-m MS] [--sound=0|1] [--log=0|1|2] [-f FEN] [-h]';
+  CUsage = 'Usage: pixelchess [-t NAME] [-s N] [-e PATH] [-m MS] [--sound=0|1] [--log=0|1|2] [--layout=horizontal|vertical] [-f FEN] [-h]';
 
 procedure PrintUsage;
 begin
@@ -479,6 +498,7 @@ begin
   WriteLn('  --movetime=MS, -m MS     engine thinking time per move, in milliseconds');
   WriteLn('  --sound=0|1              start muted (0) or with sounds (1)');
   WriteLn('  --log=0|1|2              no log (0), simple log (1), log with the UCI dialogue (2)');
+  WriteLn('  --layout=horizontal|vertical  panel beside (horizontal) or below (vertical) the board');
   WriteLn('  --fen=FEN, -f FEN        start position');
   WriteLn('  --help, -h               show this help');
 end;
@@ -629,7 +649,7 @@ begin
     result := LStartFen;
 end;
 
-procedure ParseCommandLine(var AThemeName, AScale, AEnginePath, AMoveTime, ASound, ALog, AFen: string);
+procedure ParseCommandLine(var AThemeName, AScale, AEnginePath, AMoveTime, ASound, ALog, ALayout, AFen: string);
 var
   i: integer;
   LArg: string;
@@ -678,6 +698,8 @@ begin
       ASound := LValue
     else if TryOption('--log', '', LValue) then
       ALog := LValue
+    else if TryOption('--layout', '', LValue) then
+      ALayout := LValue
     else if TryOption('--fen', '-f', LValue) then
       AFen := LValue
     else
@@ -715,7 +737,7 @@ end;
 procedure LoadConfig;
 var
   LIni: TIniFile;
-  LPath, LThemeName, LScaleText, LEnginePath, LMoveTimeText, LSoundText, LLogText, LFen: string;
+  LPath, LThemeName, LScaleText, LEnginePath, LMoveTimeText, LSoundText, LLogText, LLayoutText, LFen: string;
   LVersion: integer;
 begin
   LPath := Concat(SDL_GetBasePath, CConfigFile);
@@ -729,11 +751,12 @@ begin
     LMoveTimeText := Trim(LIni.ReadString(CConfigSection, 'movetime', IntToStr(CEngineMoveTime)));
     LSoundText := Trim(LIni.ReadString(CConfigSection, 'sound', '1'));
     LLogText := Trim(LIni.ReadString(CConfigSection, 'log', '1'));
+    LLayoutText := Trim(LIni.ReadString(CConfigSection, 'layout', 'horizontal'));
   finally
     LIni.Free;
   end;
   LFen := '';
-  ParseCommandLine(LThemeName, LScaleText, LEnginePath, LMoveTimeText, LSoundText, LLogText, LFen);
+  ParseCommandLine(LThemeName, LScaleText, LEnginePath, LMoveTimeText, LSoundText, LLogText, LLayoutText, LFen);
   if LSoundText = '' then
     LSoundEnabled := TRUE
   else if (LSoundText = '0') or (LSoundText = '1') then
@@ -748,6 +771,15 @@ begin
   else if not TryStrToInt(LLogText, LogLevel) or (LogLevel < 0) or (LogLevel > 2) then
   begin
     Report(Concat('Invalid log level: ', LLogText, '. Expected 0, 1 or 2.'));
+    Halt(1);
+  end;
+  if (LLayoutText = '') or (LLayoutText = 'horizontal') then
+    LVertical := FALSE
+  else if LLayoutText = 'vertical' then
+    LVertical := TRUE
+  else
+  begin
+    Report(Concat('Invalid layout: ', LLayoutText, '. Expected horizontal or vertical.'));
     Halt(1);
   end;
   if LogLevel >= 1 then
@@ -803,18 +835,29 @@ begin
     result := CCommandLabels[ACommand];
 end;
 
-procedure SetupPanel;
+function VisibleCommandCount: integer;
 var
-  LHelpLines: integer;
   c: TCommand;
 begin
-  LHelpLines := Ord(LHasEngineLine);
+  result := 0;
   for c := Low(TCommand) to High(TCommand) do
     if CommandVisible(c) then
-      Inc(LHelpLines);
-  LHelpSepY := LHeight - 12 - LHelpLines * CHelpStep;
+      Inc(result);
+end;
+
+procedure SetupPanel;
+var
+  LRows: integer;
+begin
+  if LVertical then
+  begin
+    LRows := (VisibleCommandCount + CButtonColumns - 1) div CButtonColumns;
+    LButtonY := LPanelY + LPanelH - 8 - LRows * CButtonHeight - (LRows - 1) * CButtonGap;
+    LHelpSepY := LButtonY - 8 - Ord(LHasEngineLine) * CHelpStep - 6 * Ord(LHasEngineLine);
+  end else
+    LHelpSepY := LPanelY + LPanelH - 12 - (Ord(LHasEngineLine) + VisibleCommandCount) * CHelpStep;
   LHelpY := LHelpSepY + 6;
-  LMaxLines := (LHelpSepY - 6 - CListY) div CLineHeight;
+  LMaxLines := (LHelpSepY - 6 - LPanelY - CListY) div CLineHeight;
 end;
 
 procedure TextureSize(const ATexture: PSDL_Texture; out AW, AH: integer);
@@ -1472,24 +1515,37 @@ begin
   result := LHelpY + ALine * CHelpStep;
 end;
 
+function CommandRect(const ASlot: integer): TSDL_FRect;
+var
+  w: integer;
+begin
+  if LVertical then
+  begin
+    w := (LPanelW - 16 - (CButtonColumns - 1) * CButtonGap) div CButtonColumns;
+    result := MakeRect(LPanelX + 8 + (ASlot mod CButtonColumns) * (w + CButtonGap),
+      LButtonY + (ASlot div CButtonColumns) * (CButtonHeight + CButtonGap), w, CButtonHeight);
+  end else
+    result := MakeRect(LPanelX + 4, HelpLineY(Ord(LHasEngineLine) + ASlot), LPanelW - 8, CHelpStep);
+end;
+
 function CommandAt(const AX, AY: single; out ACommand: TCommand): boolean;
 var
-  LLine: integer;
+  LSlot: integer;
+  LRect: TSDL_FRect;
   c: TCommand;
 begin
   result := FALSE;
-  if (AX < LBoardSize) or (AX >= LWidth) then
-    exit;
-  LLine := Ord(LHasEngineLine);
+  LSlot := 0;
   for c := Low(TCommand) to High(TCommand) do
     if CommandVisible(c) then
     begin
-      if (AY >= HelpLineY(LLine)) and (AY < HelpLineY(LLine) + CHelpStep) then
+      LRect := CommandRect(LSlot);
+      if (AX >= LRect.x) and (AX < LRect.x + LRect.w) and (AY >= LRect.y) and (AY < LRect.y + LRect.h) then
       begin
         ACommand := c;
         exit(CommandEnabled(c));
       end;
-      Inc(LLine);
+      Inc(LSlot);
     end;
 end;
 
@@ -1533,7 +1589,7 @@ begin
       Deselect;
     exit;
   end;
-  if AX >= LBoardSize then
+  if (AX >= LPanelX) and (AY >= LPanelY) then
   begin
     if CommandAt(AX, AY, LCommand) then
       ExecuteCommand(LCommand)
@@ -1715,18 +1771,27 @@ begin
   result := result + '...';
 end;
 
-procedure DrawHelpLine(const ALine: integer; const AKey, ALabel: string; const AEnabled, AHover: boolean);
+procedure DrawCommand(const ASlot: integer; const ACommand: TCommand; const AHover: boolean);
 var
   LColor: TSDL_Color;
+  LRect: TSDL_FRect;
 begin
+  LRect := CommandRect(ASlot);
   if AHover then
-    FillRect(LBoardSize + 4, HelpLineY(ALine), LWidth - LBoardSize - 8, CHelpStep, MixColors(ciPanel, ciSeparator));
-  if AEnabled then
+    FillRect(LRect.x, LRect.y, LRect.w, LRect.h, MixColors(ciPanel, ciSeparator));
+  if CommandEnabled(ACommand) then
     LColor := Color(ciHelp)
   else
     LColor := MixColors(ciHelp, ciPanel);
-  DrawText(LTextFont, LBoardSize + 8, HelpLineY(ALine), AKey, LColor);
-  DrawText(LTextFont, LBoardSize + 40, HelpLineY(ALine), ALabel, LColor);
+  if LVertical then
+  begin
+    FrameRect(LRect.x, LRect.y, LRect.w, LRect.h, Color(ciSeparator));
+    DrawTextCentered(LRect.x + LRect.w / 2, LRect.y + LRect.h / 2, CommandLabel(ACommand), LColor);
+  end else
+  begin
+    DrawText(LTextFont, LPanelX + 8, LRect.y, CCommandKeys[ACommand], LColor);
+    DrawText(LTextFont, LPanelX + 40, LRect.y, CommandLabel(ACommand), LColor);
+  end;
 end;
 
 procedure DrawPanel;
@@ -1737,23 +1802,26 @@ var
   c, LHoverCommand: TCommand;
   LHover: boolean;
 begin
-  FillRect(LBoardSize, 0, LWidth - LBoardSize, LHeight, Color(ciPanel));
-  FillRect(LBoardSize, 0, 2, LHeight, Color(ciPanelBorder));
-  DrawText(LTitleFont, LBoardSize + (LWidth - LBoardSize - TextWidth(LTitleFont, UpperCase(CAppTitle))) div 2, CTitleY, UpperCase(CAppTitle), Color(ciTitle));
+  FillRect(LPanelX, LPanelY, LPanelW, LPanelH, Color(ciPanel));
+  if LVertical then
+    FillRect(LPanelX, LPanelY, LPanelW, 2, Color(ciPanelBorder))
+  else
+    FillRect(LPanelX, LPanelY, 2, LPanelH, Color(ciPanelBorder));
+  DrawText(LTitleFont, LPanelX + (LPanelW - TextWidth(LTitleFont, UpperCase(CAppTitle))) div 2, LPanelY + CTitleY, UpperCase(CAppTitle), Color(ciTitle));
   LStatus := StatusText(LSecond);
   if (LNotice <> '') and (SDL_GetTicks < LNoticeUntil) then
     LSecond := LNotice;
-  DrawText(LTextFont, LBoardSize + CStatusX, CStatusY, LStatus, Color(ciStatus));
+  DrawText(LTextFont, LPanelX + CStatusX, LPanelY + CStatusY, LStatus, Color(ciStatus));
   if LSecond <> '' then
-    DrawText(LTextFont, LBoardSize + CStatusX, CSecondY, LSecond, Color(ciSecond));
-  FillRect(LBoardSize + 8, CListY - 8, LWidth - LBoardSize - 16, 1, Color(ciSeparator));
+    DrawText(LTextFont, LPanelX + CStatusX, LPanelY + CSecondY, LSecond, Color(ciSecond));
+  FillRect(LPanelX + 8, LPanelY + CListY - 8, LPanelW - 16, 1, Color(ciSeparator));
   LLines := (MoveSlot(LSanMoves.Count) + 1) div 2;
   LFirst := 0;
   if LLines > LMaxLines then
     LFirst := LLines - LMaxLines;
   for i := LFirst to LLines - 1 do
   begin
-    y := CListY + (i - LFirst) * CLineHeight;
+    y := LPanelY + CListY + (i - LFirst) * CLineHeight;
     LWhite := '...';
     if 2 * i - Ord(LBlackFirst) >= 0 then
       LWhite := LSanMoves[2 * i - Ord(LBlackFirst)];
@@ -1762,12 +1830,11 @@ begin
     else
       LBlack := '';
     LNumber := Format('%d.', [LFirstMove + i]);
-    DrawText(LTextFont, LBoardSize + 34 - TextWidth(LTextFont, LNumber), y, LNumber, Color(ciHelp));
-    DrawText(LTextFont, LBoardSize + 44, y, LWhite, Color(ciList));
-    DrawText(LTextFont, LBoardSize + 110, y, LBlack, Color(ciList));
+    DrawText(LTextFont, LPanelX + 34 - TextWidth(LTextFont, LNumber), y, LNumber, Color(ciHelp));
+    DrawText(LTextFont, LPanelX + 44, y, LWhite, Color(ciList));
+    DrawText(LTextFont, LPanelX + 110, y, LBlack, Color(ciList));
   end;
-  FillRect(LBoardSize + 8, LHelpSepY, LWidth - LBoardSize - 16, 1, Color(ciSeparator));
-  i := 0;
+  FillRect(LPanelX + 8, LHelpSepY, LPanelW - 16, 1, Color(ciSeparator));
   if LHasEngineLine then
   begin
     if LEngine = nil then
@@ -1776,14 +1843,14 @@ begin
       LSecond := ' plays White'
     else
       LSecond := ' plays Black';
-    DrawText(LTextFont, LBoardSize + 8, LHelpY, FitText(LEngineName, LWidth - LBoardSize - 16 - TextWidth(LTextFont, LSecond)) + LSecond, Color(ciList));
-    i := 1;
+    DrawText(LTextFont, LPanelX + 8, LHelpY, FitText(LEngineName, LPanelW - 16 - TextWidth(LTextFont, LSecond)) + LSecond, Color(ciList));
   end;
   LHover := not LDragging and not LPromoting and CommandAt(LMouseX, LMouseY, LHoverCommand);
+  i := 0;
   for c := Low(TCommand) to High(TCommand) do
     if CommandVisible(c) then
     begin
-      DrawHelpLine(i, CCommandKeys[c], CommandLabel(c), CommandEnabled(c), LHover and (c = LHoverCommand));
+      DrawCommand(i, c, LHover and (c = LHoverCommand));
       Inc(i);
     end;
 end;

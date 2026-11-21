@@ -44,6 +44,7 @@ engine=builtin
 movetime=1000
 sound=1
 log=1
+layout=horizontal
 ```
 
 - `theme`: one of `bftc` (default), `deepbasic`, `fritz`, `lanea`, `lucas`, `m484`, `m484-classic`, `m484-gold`, `m484-slate`, `owl`, `smirf`, `warlord`
@@ -52,6 +53,7 @@ log=1
 - `movetime`: the engine's thinking time per move, in milliseconds (default `1000`).
 - `sound`: `1` (default) to play sounds, `0` to start muted.
 - `log`: `0` for no log file, `1` (default) for a simple log in `pixelchess.log`, `2` to also record the dialogue with the engine.
+- `layout`: `horizontal` (default) for the panel beside the board, `vertical` for the panel below it, with buttons for the commands.
 
 If the file is missing, it is created with the default values.
 
@@ -64,6 +66,7 @@ These settings can also be given on the command line, which overrides `pixelches
 ./pixelchess -e ../engines/ct800 -m 500 -t m484
 ./pixelchess --engine=
 ./pixelchess --sound=0 --log=2
+./pixelchess --layout=vertical
 ./pixelchess --fen="4k3/8/8/8/8/8/8/4K2R w K - 0 1"
 ./pixelchess --help
 ```
