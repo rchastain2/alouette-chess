@@ -109,6 +109,9 @@ var
   LAnimStart: UInt64;
   LAnimSound: TSound;
   LQuit: boolean = FALSE;
+{$IFDEF ANDROID}
+  LDataDir: string = '';
+{$ENDIF}
 
 procedure Report(const AText: string);
 begin
@@ -122,12 +125,43 @@ begin
   Halt(1);
 end;
 
+function ResourcePath(const AName: string): string;
+begin
+{$IFDEF ANDROID}
+  result := AName;
+{$ELSE}
+  result := Concat(SDL_GetBasePath, AName);
+{$ENDIF}
+end;
+
+function DataPath(const AName: string): string;
+{$IFDEF ANDROID}
+var
+  LPrefPath: PAnsiChar;
+{$ENDIF}
+begin
+{$IFDEF ANDROID}
+  if LDataDir = '' then
+  begin
+    LPrefPath := SDL_GetPrefPath('', 'pixelchess');
+    if LPrefPath <> nil then
+    begin
+      LDataDir := LPrefPath;
+      SDL_free(LPrefPath);
+    end;
+  end;
+  result := Concat(LDataDir, AName);
+{$ELSE}
+  result := Concat(SDL_GetBasePath, AName);
+{$ENDIF}
+end;
+
 function LoadTexture(const AName: string; const AColorKey: boolean = FALSE): PSDL_Texture;
 var
   LPath: string;
   LSurface: PSDL_Surface;
 begin
-  LPath := Concat(SDL_GetBasePath, AName, '.png');
+  LPath := ResourcePath(Concat(AName, '.png'));
   LSurface := SDL_LoadPNG(PAnsiChar(LPath));
   if LSurface = nil then
     Fail('SDL_LoadPNG(' + LPath + ')');
@@ -146,7 +180,7 @@ var
   LSurface: PSDL_Surface;
 begin
   result := nil;
-  LPath := Concat(SDL_GetBasePath, AName, '.png');
+  LPath := ResourcePath(Concat(AName, '.png'));
   LSurface := SDL_LoadPNG(PAnsiChar(LPath));
   if LSurface = nil then
     exit;
@@ -179,7 +213,7 @@ var
 begin
   LSounds[ASound].Data := nil;
   LSounds[ASound].Len := 0;
-  LPath := Concat(SDL_GetBasePath, 'sounds/', AName, '.wav');
+  LPath := ResourcePath(Concat('sounds/', AName, '.wav'));
   if not SDL_LoadWAV(PAnsiChar(LPath), @LSpec, @LBuf, @LLen) then
     exit;
   if (LSpec.format = LAudioSpec.format) and (LSpec.channels = LAudioSpec.channels) and (LSpec.freq = LAudioSpec.freq) then
@@ -241,7 +275,7 @@ var
   LPath: string;
   LSurface: PSDL_Surface;
 begin
-  LPath := Concat(SDL_GetBasePath, 'images/icon.png');
+  LPath := ResourcePath('images/icon.png');
   LSurface := SDL_LoadPNG(PAnsiChar(LPath));
   if LSurface = nil then
     exit;
@@ -279,7 +313,7 @@ function OpenFont(const AFile: string; const ASize: single): PTTF_Font;
 var
   LPath: string;
 begin
-  LPath := Concat(SDL_GetBasePath, AFile);
+  LPath := ResourcePath(AFile);
   result := TTF_OpenFont(PAnsiChar(LPath), ASize);
   if result = nil then
     Fail('TTF_OpenFont(' + LPath + ')');
@@ -429,6 +463,36 @@ begin
   LDotSize := 2 * (LSquare div 8);
 end;
 
+{$IFDEF ANDROID}
+procedure CopyResource(const AName: string);
+var
+  LTarget: string;
+  LData: pointer;
+  LSize: csize_t;
+begin
+  LTarget := DataPath(AName);
+  if FileExists(LTarget) then
+    exit;
+  LData := SDL_LoadFile(PAnsiChar(ResourcePath(AName)), @LSize);
+  if LData = nil then
+  begin
+    Report(Concat('SDL_LoadFile(', AName, '): ', SDL_GetError));
+    exit;
+  end;
+  if not SDL_SaveFile(PAnsiChar(LTarget), LData, LSize) then
+    Report(Concat('SDL_SaveFile(', LTarget, '): ', SDL_GetError));
+  SDL_free(LData);
+end;
+
+procedure InstallEngineFiles;
+begin
+  if not SDL_CreateDirectory(PAnsiChar(DataPath('engine'))) then
+    Report(Concat('SDL_CreateDirectory: ', SDL_GetError));
+  CopyResource('engine/white.txt');
+  CopyResource('engine/black.txt');
+end;
+{$ENDIF}
+
 procedure StartEngine(const APath: string);
 var
   LPath: string;
@@ -436,13 +500,16 @@ begin
   if APath = CBuiltinEngine then
   begin
     WriteLog('Starting built-in engine');
-    LEngine := TUciEngine.CreateBuiltin(Concat(SDL_GetBasePath, 'engine/alouette.cfg'), Concat(SDL_GetBasePath, 'engine/'));
+{$IFDEF ANDROID}
+    InstallEngineFiles;
+{$ENDIF}
+    LEngine := TUciEngine.CreateBuiltin(DataPath('engine/alouette.cfg'), DataPath('engine/'));
     LEngineName := 'Alouette';
     exit;
   end;
   LPath := APath;
   if (ExtractFileDrive(LPath) = '') and not (LPath[1] in AllowDirectorySeparators) then
-    LPath := Concat(SDL_GetBasePath, LPath);
+    LPath := ResourcePath(LPath);
   if not FileExists(LPath) then
   begin
     Report('Engine not found: ' + LPath);
@@ -740,7 +807,7 @@ var
   LPath, LThemeName, LScaleText, LEnginePath, LMoveTimeText, LSoundText, LLogText, LLayoutText, LFen: string;
   LVersion: integer;
 begin
-  LPath := Concat(SDL_GetBasePath, CConfigFile);
+  LPath := DataPath(CConfigFile);
   if not FileExists(LPath) then
     CreateDefaultConfig(LPath);
   LIni := TIniFile.Create(LPath);
@@ -783,7 +850,7 @@ begin
     Halt(1);
   end;
   if LogLevel >= 1 then
-    OpenLog(Concat(SDL_GetBasePath, CLogFile));
+    OpenLog(DataPath(CLogFile));
   WriteLog(Concat(CAppTitle, ' ', CAppVersion));
   WriteLog(Format('Built %s %s with FPC %s for %s-%s', [{$I %DATE%}, {$I %TIME%}, {$I %FPCVERSION%}, {$I %FPCTARGETCPU%}, {$I %FPCTARGETOS%}]));
   LVersion := SDL_GetVersion;
