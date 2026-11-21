@@ -50,6 +50,12 @@ type
     Data: pcuint8;
     Len: cint;
   end;
+  TCommand = (cmNewGame, cmFlip, cmSwitchSides, cmTakeBack, cmMute, cmCopyPgn, cmCopyFen, cmQuit);
+
+const
+  CCommandKeys: array[TCommand] of string = ('N', 'F', 'S', '<-', 'M', 'C', 'P', 'Esc');
+  CCommandCodes: array[TCommand] of TSDL_Keycode = (SDLK_N, SDLK_F, SDLK_S, SDLK_BACKSPACE, SDLK_M, SDLK_C, SDLK_P, SDLK_ESCAPE);
+  CCommandLabels: array[TCommand] of string = ('new game', 'flip board', 'switch sides', 'take back', 'mute', 'copy PGN', 'copy FEN', 'quit');
 
 var
   LWindow: PSDL_Window;
@@ -97,6 +103,7 @@ var
   LAnimPiece, LAnimCaptured: char;
   LAnimStart: UInt64;
   LAnimSound: TSound;
+  LQuit: boolean = FALSE;
 
 procedure Report(const AText: string);
 begin
@@ -778,14 +785,33 @@ begin
   LHasEngineLine := LEngine <> nil;
 end;
 
+function CommandVisible(const ACommand: TCommand): boolean;
+begin
+  result := (ACommand <> cmSwitchSides) or LHasEngineLine;
+end;
+
+function CommandEnabled(const ACommand: TCommand): boolean;
+begin
+  result := (ACommand <> cmSwitchSides) or (LEngine <> nil);
+end;
+
+function CommandLabel(const ACommand: TCommand): string;
+begin
+  if (ACommand = cmMute) and not LSoundEnabled then
+    result := 'unmute'
+  else
+    result := CCommandLabels[ACommand];
+end;
+
 procedure SetupPanel;
 var
   LHelpLines: integer;
+  c: TCommand;
 begin
-  if LHasEngineLine then
-    LHelpLines := 8
-  else
-    LHelpLines := 6;
+  LHelpLines := Ord(LHasEngineLine);
+  for c := Low(TCommand) to High(TCommand) do
+    if CommandVisible(c) then
+      Inc(LHelpLines);
   LHelpSepY := LHeight - 12 - LHelpLines * CHelpStep;
   LHelpY := LHelpSepY + 6;
   LMaxLines := (LHelpSepY - 6 - CListY) div CLineHeight;
@@ -1419,6 +1445,54 @@ begin
     UndoMoves(1);
 end;
 
+procedure ExecuteCommand(const ACommand: TCommand);
+begin
+  case ACommand of
+    cmNewGame:
+      NewGame;
+    cmFlip:
+      LFlipped := not LFlipped;
+    cmSwitchSides:
+      SwitchSides;
+    cmTakeBack:
+      TakeBack;
+    cmMute:
+      LSoundEnabled := not LSoundEnabled;
+    cmCopyPgn:
+      CopyToClipboard(GamePgn, 'PGN copied.');
+    cmCopyFen:
+      CopyToClipboard(LGame.GetFen(FALSE), 'FEN copied.');
+    cmQuit:
+      LQuit := TRUE;
+  end;
+end;
+
+function HelpLineY(const ALine: integer): integer;
+begin
+  result := LHelpY + ALine * CHelpStep;
+end;
+
+function CommandAt(const AX, AY: single; out ACommand: TCommand): boolean;
+var
+  LLine: integer;
+  c: TCommand;
+begin
+  result := FALSE;
+  if (AX < LBoardSize) or (AX >= LWidth) then
+    exit;
+  LLine := Ord(LHasEngineLine);
+  for c := Low(TCommand) to High(TCommand) do
+    if CommandVisible(c) then
+    begin
+      if (AY >= HelpLineY(LLine)) and (AY < HelpLineY(LLine) + CHelpStep) then
+      begin
+        ACommand := c;
+        exit(CommandEnabled(c));
+      end;
+      Inc(LLine);
+    end;
+end;
+
 function OwnPiece(const c: char): boolean;
 begin
   result := (c <> ' ') and (WhitePiece(c) = (LGame.ActiveColor = pcWhite));
@@ -1447,6 +1521,7 @@ end;
 procedure MouseDown(const AX, AY: single);
 var
   f, r, i: integer;
+  LCommand: TCommand;
 begin
   if LPromoting then
   begin
@@ -1454,6 +1529,14 @@ begin
     LPromoting := FALSE;
     if i >= 0 then
       PlayMove(LPromotionMove + CPromotionChars[i + 1])
+    else
+      Deselect;
+    exit;
+  end;
+  if AX >= LBoardSize then
+  begin
+    if CommandAt(AX, AY, LCommand) then
+      ExecuteCommand(LCommand)
     else
       Deselect;
     exit;
@@ -1632,16 +1715,18 @@ begin
   result := result + '...';
 end;
 
-procedure DrawHelpLine(const AIndex: integer; const AKey, ALabel: string; const AEnabled: boolean = TRUE);
+procedure DrawHelpLine(const ALine: integer; const AKey, ALabel: string; const AEnabled, AHover: boolean);
 var
   LColor: TSDL_Color;
 begin
+  if AHover then
+    FillRect(LBoardSize + 4, HelpLineY(ALine), LWidth - LBoardSize - 8, CHelpStep, MixColors(ciPanel, ciSeparator));
   if AEnabled then
     LColor := Color(ciHelp)
   else
     LColor := MixColors(ciHelp, ciPanel);
-  DrawText(LTextFont, LBoardSize + 8, LHelpY + AIndex * CHelpStep, AKey, LColor);
-  DrawText(LTextFont, LBoardSize + 40, LHelpY + AIndex * CHelpStep, ALabel, LColor);
+  DrawText(LTextFont, LBoardSize + 8, HelpLineY(ALine), AKey, LColor);
+  DrawText(LTextFont, LBoardSize + 40, HelpLineY(ALine), ALabel, LColor);
 end;
 
 procedure DrawPanel;
@@ -1649,6 +1734,8 @@ var
   LStatus, LSecond, LWhite, LBlack, LNumber: string;
   LLines, LFirst, i: integer;
   y: single;
+  c, LHoverCommand: TCommand;
+  LHover: boolean;
 begin
   FillRect(LBoardSize, 0, LWidth - LBoardSize, LHeight, Color(ciPanel));
   FillRect(LBoardSize, 0, 2, LHeight, Color(ciPanelBorder));
@@ -1692,20 +1779,13 @@ begin
     DrawText(LTextFont, LBoardSize + 8, LHelpY, FitText(LEngineName, LWidth - LBoardSize - 16 - TextWidth(LTextFont, LSecond)) + LSecond, Color(ciList));
     i := 1;
   end;
-  DrawHelpLine(i, 'N', 'new game');
-  DrawHelpLine(i + 1, 'F', 'flip board');
-  if LHasEngineLine then
-  begin
-    DrawHelpLine(i + 2, 'S', 'switch sides', LEngine <> nil);
-    Inc(i);
-  end;
-  DrawHelpLine(i + 2, '<-', 'take back');
-  DrawHelpLine(i + 4, 'C/P', 'copy PGN/FEN');
-  DrawHelpLine(i + 5, 'Esc', 'quit');
-  if LSoundEnabled then
-    DrawHelpLine(i + 3, 'M', 'mute')
-  else
-    DrawHelpLine(i + 3, 'M', 'unmute');
+  LHover := not LDragging and not LPromoting and CommandAt(LMouseX, LMouseY, LHoverCommand);
+  for c := Low(TCommand) to High(TCommand) do
+    if CommandVisible(c) then
+    begin
+      DrawHelpLine(i, CCommandKeys[c], CommandLabel(c), CommandEnabled(c), LHover and (c = LHoverCommand));
+      Inc(i);
+    end;
 end;
 
 procedure DrawPromotion;
@@ -1736,7 +1816,9 @@ begin
   SDL_RenderPresent(LRenderer);
 end;
 
-procedure HandleEvent(var e: TSDL_Event; var AQuit: boolean);
+procedure HandleEvent(var e: TSDL_Event);
+var
+  c: TCommand;
 begin
   SDL_ConvertEventToRenderCoordinates(LRenderer, @e);
   if LAnimating and ((e.type_ = SDL_EVENT_KEY_DOWN) or (e.type_ = SDL_EVENT_MOUSE_BUTTON_DOWN)
@@ -1744,30 +1826,20 @@ begin
     exit;
   case e.type_ of
     SDL_EVENT_QUIT:
-      AQuit := TRUE;
+      LQuit := TRUE;
     SDL_EVENT_KEY_DOWN:
-      case e.key.key of
-        SDLK_ESCAPE:
-          if LPromoting then
-          begin
-            LPromoting := FALSE;
-            Deselect;
-          end else
-            AQuit := TRUE;
-        SDLK_N:
-          NewGame;
-        SDLK_F:
-          LFlipped := not LFlipped;
-        SDLK_S:
-          SwitchSides;
-        SDLK_BACKSPACE:
-          TakeBack;
-        SDLK_M:
-          LSoundEnabled := not LSoundEnabled;
-        SDLK_C:
-          CopyToClipboard(GamePgn, 'PGN copied.');
-        SDLK_P:
-          CopyToClipboard(LGame.GetFen(FALSE), 'FEN copied.');
+      if (e.key.key = SDLK_ESCAPE) and LPromoting then
+      begin
+        LPromoting := FALSE;
+        Deselect;
+      end else
+        for c := Low(TCommand) to High(TCommand) do
+          if (e.key.key = CCommandCodes[c]) and CommandEnabled(c) then
+            ExecuteCommand(c);
+    SDL_EVENT_WINDOW_MOUSE_LEAVE:
+      begin
+        LMouseX := -1;
+        LMouseY := -1;
       end;
     SDL_EVENT_MOUSE_MOTION:
       begin
@@ -1809,13 +1881,12 @@ end;
 procedure MainLoop;
 var
   e: TSDL_Event;
-  LQuit: boolean = FALSE;
 begin
   while not LQuit do
   begin
     if SDL_WaitEventTimeout(@e, WaitTimeout) then
       repeat
-        HandleEvent(e, LQuit);
+        HandleEvent(e);
       until not SDL_PollEvent(@e);
     UpdateEngine;
     UpdateAnimation;

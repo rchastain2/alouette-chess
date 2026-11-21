@@ -1,6 +1,6 @@
 TARGET := pixelchess
 
-PFLAGS := -Mobjfpc -Sh
+PFLAGS := -Mobjfpc -Sh -O2
 PFLAGS += -Fu../sdl3-for-pascal/units/
 PFLAGS += -Fusource/chess/
 PFLAGS += -Fuengine/source/

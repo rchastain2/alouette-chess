@@ -84,9 +84,11 @@ On the command line, a relative engine path is resolved from the current directo
 | `P`               | Copy the position (FEN)                 |
 | `Esc`             | Cancel a promotion, or quit             |
 
+The commands listed in the panel can also be clicked.
+
 ## Credits
 
-- Engine: [Alouette](engine/README.md) by Roland Chastain (0BSD)
+- Engine: [Alouette](engine/README.md) by Roland Chastain (GPL v3 or later)
 - Fonts: Alagard by Hewett Tsoi, Minecraftia
 - Themes:
   - `bftc`: pieces from *Bobby Fischer Teaches Chess*
