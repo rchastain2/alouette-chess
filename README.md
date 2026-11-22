@@ -1,6 +1,6 @@
 # Alouette Chess
 
-A pixel-art chess game written in Free Pascal with SDL3. Play against a friend on the same computer, or against a UCI chess engine.
+A pixel-art chess game written in Free Pascal with SDL3, for Linux, Windows and Android. Play against a friend on the same device, or against a UCI chess engine.
 
 ![Screenshot](screenshots/020-lucas.png)
 
@@ -27,6 +27,8 @@ make
 `make clean` removes the build output.
 
 On Linux, `make desktop` adds a launcher to your desktop.
+
+`make android` builds a debug APK, and `make android-release` a signed one. This requires the Android SDK and NDK, a Free Pascal cross-compiler for aarch64-android, and the SDL3 and SDL3_ttf sources; their paths are set in `android/local.properties` (see `local.properties.example`).
 
 ## Usage
 
@@ -72,6 +74,12 @@ These settings can also be given on the command line, which overrides `alouette-
 ```
 
 On the command line, a relative engine path is resolved from the current directory. An empty path (`--engine=`) disables the computer opponent set in `alouette-chess.ini`. `--fen` (or `-f`) starts the game, and every new game, from the given position.
+
+## Android
+
+Download the APK from the [Releases](https://github.com/rchastain2/alouette-chess/releases) page and open it on your phone. Android asks you to allow installing apps from this source. Requires Android 5.0 or later on a 64-bit ARM device.
+
+Tap or drag to move a piece, and use the buttons below the board for the other commands. The back button quits. The Android version always plays against the bundled Alouette engine.
 
 ## Controls
 
