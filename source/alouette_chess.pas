@@ -1,23 +1,23 @@
 {$IFDEF ANDROID}
-library pixelchess;
+library alouette_chess;
 {$ELSE}
-program pixelchess;
+program alouette_chess;
 {$ENDIF}
 
 {$mode objfpc}{$H+}
 
 {$IFDEF WINDOWS}
-{$R pixelchess.rc}
+{$R alouette_chess.rc}
 {$ENDIF}
 
 uses
 {$IFDEF UNIX}
   CThreads,
 {$ENDIF}
-  SysUtils, Classes, IniFiles, ctypes, SDL3, SDL3_ttf, ChessTypes, ChessGame, Fen, Themes, UciEngine, PixelLog;
+  SysUtils, Classes, IniFiles, ctypes, SDL3, SDL3_ttf, ChessTypes, ChessGame, Fen, Themes, UciEngine, LogFile;
 
 const
-  CAppTitle = 'Pixel Chess';
+  CAppTitle = 'Alouette Chess';
   CAppVersion = '0.2.0';
   CPromotionChars = 'qrbn';
   CPieceChars = 'PNBRQKpnbrqk';
@@ -42,13 +42,13 @@ const
   CEngineMoveTime = 1000;
   CAnimationTime = 200;
   CTextCacheSize = 512;
-  CConfigFile = 'pixelchess.ini';
-  CLogFile = 'pixelchess.log';
+  CConfigFile = 'alouette-chess.ini';
+  CLogFile = 'alouette-chess.log';
   CDefaultTheme = 'bftc';
   CDefaultScale = 1;
   CBuiltinEngine = 'builtin';
   CDefaultEngine = CBuiltinEngine;
-  CConfigSection = 'pixelchess';
+  CConfigSection = 'alouette-chess';
   CDefaultLayout = {$IFDEF ANDROID}'vertical'{$ELSE}'horizontal'{$ENDIF};
 
 type
@@ -148,7 +148,7 @@ begin
 {$IFDEF ANDROID}
   if LDataDir = '' then
   begin
-    LPrefPath := SDL_GetPrefPath('', 'pixelchess');
+    LPrefPath := SDL_GetPrefPath('', 'alouette-chess');
     if LPrefPath <> nil then
     begin
       LDataDir := LPrefPath;
@@ -559,7 +559,7 @@ begin
 end;
 
 const
-  CUsage = 'Usage: pixelchess [-t NAME] [-s N] [-e PATH] [-m MS] [--sound=0|1] [--log=0|1|2] [--layout=horizontal|vertical] [-f FEN] [-h]';
+  CUsage = 'Usage: alouette-chess [-t NAME] [-s N] [-e PATH] [-m MS] [--sound=0|1] [--log=0|1|2] [--layout=horizontal|vertical] [-f FEN] [-h]';
 
 procedure PrintUsage;
 begin
@@ -782,7 +782,7 @@ end;
 
 procedure InitVideo;
 begin
-  SDL_SetAppMetadata(CAppTitle, CAppVersion, 'pixelchess');
+  SDL_SetAppMetadata(CAppTitle, CAppVersion, 'alouette-chess');
   if not SDL_Init(SDL_INIT_VIDEO) then
     Fail('SDL_Init');
 end;
@@ -1499,7 +1499,7 @@ var
   end;
 
 begin
-  LText := Format('[Event "Casual game"]%s[Site "Pixel Chess"]%s[Date "%s"]%s[Round "-"]%s[White "%s"]%s[Black "%s"]%s[Result "%s"]%s',
+  LText := Format('[Event "Casual game"]%s[Site "Alouette Chess"]%s[Date "%s"]%s[Round "-"]%s[White "%s"]%s[Black "%s"]%s[Result "%s"]%s',
     [LineEnding, LineEnding, FormatDateTime('yyyy.mm.dd', Now), LineEnding, LineEnding,
      PlayerName(pcWhite), LineEnding, PlayerName(pcBlack), LineEnding, GameResult, LineEnding]);
   if LStartFen <> '' then

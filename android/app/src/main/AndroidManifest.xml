@@ -16,7 +16,7 @@
         android:hardwareAccelerated="true">
 
         <activity
-            android:name=".PixelChessActivity"
+            android:name=".AlouetteChessActivity"
             android:label="@string/app_name"
             android:alwaysRetainTaskState="true"
             android:launchMode="singleInstance"

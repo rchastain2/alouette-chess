@@ -1,4 +1,4 @@
-unit PixelLog;
+unit LogFile;
 
 {$mode objfpc}{$H+}
 

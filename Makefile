@@ -1,4 +1,4 @@
-TARGET := pixelchess
+TARGET := alouette-chess
 
 PFLAGS := -Mobjfpc -Sh -O2
 PFLAGS += -Fu../sdl3-for-pascal/units/
@@ -10,7 +10,7 @@ PFLAGS += -FUtemp
 
 all: $(TARGET) alouette
 
-$(TARGET): source/pixelchess.pas source/*.pas source/chess/*.pas engine/source/*.pas | temp
+$(TARGET): source/alouette_chess.pas source/*.pas source/chess/*.pas engine/source/*.pas | temp
 	fpc $(PFLAGS) -o$@ $<
 
 alouette:
@@ -25,7 +25,7 @@ ICON_SOURCE := images/bftc/bb.png
 
 icon: tools/makeicon.pas tools/win3icon.pas | temp/tools
 	fpc -vq -FUtemp/tools -FEtemp/tools tools/makeicon.pas
-	temp/tools/makeicon $(ICON_SOURCE) images/pixelchess.ico images/icon.png 3
+	temp/tools/makeicon $(ICON_SOURCE) images/alouette-chess.ico images/icon.png 3
 
 ifneq ($(OS),Windows_NT)
 UNAME_S := $(shell uname -s)
@@ -42,7 +42,7 @@ desktop: $(TARGET)
 	printf '%s\n' \
 	  '[Desktop Entry]' \
 	  'Type=Application' \
-	  'Name=Pixel Chess' \
+	  'Name=Alouette Chess' \
 	  'Comment=Pixel-art chess game' \
 	  'Exec="$(CURDIR)/$(TARGET)"' \
 	  'Path=$(CURDIR)' \
@@ -100,7 +100,7 @@ $(ANDROID_LIBS)/libSDL3_ttf.so: $(ANDROID_LIBS)/libSDL3.so
 	cmake --build $(ANDROID_TEMP)/SDL_ttf
 	cp $(ANDROID_TEMP)/SDL_ttf/libSDL3_ttf.so $@
 
-$(ANDROID_LIBS)/libmain.so: source/pixelchess.pas source/*.pas source/chess/*.pas engine/source/*.pas $(ANDROID_LIBS)/libSDL3.so $(ANDROID_LIBS)/libSDL3_ttf.so | $(ANDROID_TEMP)/units
+$(ANDROID_LIBS)/libmain.so: source/alouette_chess.pas source/*.pas source/chess/*.pas engine/source/*.pas $(ANDROID_LIBS)/libSDL3.so $(ANDROID_LIBS)/libSDL3_ttf.so | $(ANDROID_TEMP)/units
 	$(ANDROID_FPC) $(ANDROID_PFLAGS) -o$@ $<
 
 android-clean:

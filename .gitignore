@@ -1,9 +1,9 @@
-/pixelchess
+/alouette-chess
 /temp/
 *.o
 *.ppu
-/pixelchess.log
-/pixelchess.ini
+/alouette-chess.log
+/alouette-chess.ini
 /engine/alouette
 /engine/alouette.exe
 /engine/alouette.cfg

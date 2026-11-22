@@ -5,7 +5,7 @@ unit UciEngine;
 interface
 
 uses
-  {$IFDEF UNIX}BaseUnix,{$ENDIF} SysUtils, Classes, ctypes, SDL3, PixelLog;
+  {$IFDEF UNIX}BaseUnix,{$ENDIF} SysUtils, Classes, ctypes, SDL3, LogFile;
 
 type
   TUciEngine = class
