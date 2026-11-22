@@ -68,6 +68,8 @@ ANDROID_API := 21
 ANDROID_LIBS := android/app/libs/$(ANDROID_ABI)
 ANDROID_TEMP := temp/android
 ANDROID_APK := android/app/build/outputs/apk/debug/app-debug.apk
+ANDROID_RELEASE_APK := android/app/build/outputs/apk/release/app-release.apk
+ANDROID_VERSION := $(shell sed -n "s/.*CAppVersion = '\(.*\)';/\1/p" source/alouette_chess.pas)
 
 ANDROID_CMAKE := -G Ninja -DCMAKE_BUILD_TYPE=Release
 ANDROID_CMAKE += -DCMAKE_TOOLCHAIN_FILE=$(ANDROID_NDK)/build/cmake/android.toolchain.cmake
@@ -83,6 +85,11 @@ ANDROID_PFLAGS += -vq
 
 android: $(ANDROID_LIBS)/libSDL3.so $(ANDROID_LIBS)/libSDL3_ttf.so $(ANDROID_LIBS)/libmain.so
 	cd android && ./gradlew assembleDebug
+
+android-release: $(ANDROID_LIBS)/libSDL3.so $(ANDROID_LIBS)/libSDL3_ttf.so $(ANDROID_LIBS)/libmain.so
+	cd android && ./gradlew assembleRelease
+	cp $(ANDROID_RELEASE_APK) alouette-chess-$(ANDROID_VERSION)-android-arm64.apk
+	sha256sum alouette-chess-$(ANDROID_VERSION)-android-arm64.apk
 
 android-install: android
 	$(ANDROID_SDK)/platform-tools/adb install -r $(ANDROID_APK)
@@ -107,4 +114,4 @@ android-clean:
 	rm -rf $(ANDROID_TEMP) android/app/libs
 	cd android && ./gradlew clean
 
-.PHONY: all alouette clean desktop icon android android-install android-clean
+.PHONY: all alouette clean desktop icon android android-release android-install android-clean

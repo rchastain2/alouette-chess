@@ -1,2 +1,6 @@
 sdk.dir=/home/user/Android/Sdk
 sdl.dir=/home/user/sources/SDL
+release.storeFile=/home/user/keys/alouette-chess-release.jks
+release.storePassword=
+release.keyAlias=alouette-chess
+release.keyPassword=

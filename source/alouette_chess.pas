@@ -18,7 +18,7 @@ uses
 
 const
   CAppTitle = 'Alouette Chess';
-  CAppVersion = '0.2.0';
+  CAppVersion = '0.3.0';
   CPromotionChars = 'qrbn';
   CPieceChars = 'PNBRQKpnbrqk';
   CPanelWidth = 210;

@@ -12,6 +12,13 @@ if (sdlDir == null) {
     throw new GradleException('sdl.dir is not set in android/local.properties')
 }
 def repoDir = rootProject.projectDir.parentFile
+def versionMatch = new File(repoDir, 'source/alouette_chess.pas').text =~ /CAppVersion = '(\d+)\.(\d+)\.(\d+)'/
+if (!versionMatch.find()) {
+    throw new GradleException('CAppVersion not found in source/alouette_chess.pas')
+}
+def appVersionName = "${versionMatch.group(1)}.${versionMatch.group(2)}.${versionMatch.group(3)}"
+def appVersionCode = versionMatch.group(1).toInteger() * 10000 + versionMatch.group(2).toInteger() * 100 + versionMatch.group(3).toInteger()
+def releaseStore = localProperties.getProperty('release.storeFile')
 def generatedDir = layout.buildDirectory.dir('generated/alouette_chess').get().asFile
 
 android {
@@ -23,8 +30,8 @@ android {
         applicationId = 'io.github.rchastain2.alouette_chess'
         minSdk = 21
         targetSdk = 35
-        versionCode = 1
-        versionName = '0.2.0'
+        versionCode = appVersionCode
+        versionName = appVersionName
         ndk {
             abiFilters 'arm64-v8a'
         }
@@ -33,16 +40,28 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    signingConfigs {
+        if (releaseStore != null) {
+            release {
+                storeFile = file(releaseStore)
+                storePassword = localProperties.getProperty('release.storePassword')
+                keyAlias = localProperties.getProperty('release.keyAlias')
+                keyPassword = localProperties.getProperty('release.keyPassword')
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled = false
+            if (releaseStore != null) {
+                signingConfig = signingConfigs.release
+            }
         }
     }
     sourceSets.main {
         java.srcDirs += "$sdlDir/android-project/app/src/main/java"
         jniLibs.srcDirs = ['libs']
         assets.srcDirs = ["$generatedDir/assets"]
-        res.srcDirs += "$generatedDir/res"
     }
     lint {
         abortOnError = false
@@ -57,11 +76,4 @@ def copyGameAssets = tasks.register('copyGameAssets', Sync) {
     into "$generatedDir/assets"
 }
 
-def copyLauncherIcon = tasks.register('copyLauncherIcon', Sync) {
-    from("$repoDir/images/icon.png") {
-        rename { 'ic_launcher.png' }
-    }
-    into "$generatedDir/res/mipmap-nodpi"
-}
-
-preBuild.dependsOn copyGameAssets, copyLauncherIcon
+preBuild.dependsOn copyGameAssets
