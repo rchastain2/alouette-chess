@@ -35,9 +35,134 @@ begin
   Halt(1);
 end;
 
+const
+  DarkLimit = 40;
+
+type
+  TColorArray = array of TIconColor;
+
+function ToIconColor(const AColor: TFPColor): TIconColor;
+begin
+  result.Red := AColor.Red shr 8;
+  result.Green := AColor.Green shr 8;
+  result.Blue := AColor.Blue shr 8;
+end;
+
+function Channel(const AColor: TIconColor; AChannel: integer): byte;
+begin
+  case AChannel of
+    0: result := AColor.Red;
+    1: result := AColor.Green;
+  else
+    result := AColor.Blue;
+  end;
+end;
+
+function IsDark(const AColor: TIconColor): boolean;
+begin
+  result := (AColor.Red < DarkLimit) and (AColor.Green < DarkLimit) and (AColor.Blue < DarkLimit);
+end;
+
+procedure BoxRange(const AColors: TColorArray; AFirst, ALast: integer; out AChannel, ARange: integer);
+var
+  i, c, LMin, LMax: integer;
+begin
+  AChannel := 0;
+  ARange := -1;
+  for c := 0 to 2 do
+  begin
+    LMin := 255;
+    LMax := 0;
+    for i := AFirst to ALast do
+    begin
+      if Channel(AColors[i], c) < LMin then LMin := Channel(AColors[i], c);
+      if Channel(AColors[i], c) > LMax then LMax := Channel(AColors[i], c);
+    end;
+    if LMax - LMin > ARange then
+    begin
+      ARange := LMax - LMin;
+      AChannel := c;
+    end;
+  end;
+end;
+
+procedure SortBox(var AColors: TColorArray; AFirst, ALast, AChannel: integer);
+var
+  i, j: integer;
+  LColor: TIconColor;
+begin
+  for i := AFirst + 1 to ALast do
+  begin
+    LColor := AColors[i];
+    j := i - 1;
+    while (j >= AFirst) and (Channel(AColors[j], AChannel) > Channel(LColor, AChannel)) do
+    begin
+      AColors[j + 1] := AColors[j];
+      Dec(j);
+    end;
+    AColors[j + 1] := LColor;
+  end;
+end;
+
+function BuildPalette(var AColors: TColorArray): TIconPalette;
+var
+  LFirst, LLast: array[1..IconColorCount - 1] of integer;
+  LCount, i, j, LBest, LBestRange, LChannel, LRange, LMiddle: integer;
+  LRed, LGreen, LBlue: longint;
+begin
+  FillChar(result, SizeOf(result), 0);
+  if Length(AColors) = 0 then
+    Exit;
+  LCount := 1;
+  LFirst[1] := 0;
+  LLast[1] := High(AColors);
+  while LCount < IconColorCount - 1 do
+  begin
+    LBest := 0;
+    LBestRange := 0;
+    for i := 1 to LCount do
+      if LLast[i] > LFirst[i] then
+      begin
+        BoxRange(AColors, LFirst[i], LLast[i], LChannel, LRange);
+        if LRange > LBestRange then
+        begin
+          LBestRange := LRange;
+          LBest := i;
+        end;
+      end;
+    if LBest = 0 then
+      Break;
+    BoxRange(AColors, LFirst[LBest], LLast[LBest], LChannel, LRange);
+    SortBox(AColors, LFirst[LBest], LLast[LBest], LChannel);
+    LMiddle := (LFirst[LBest] + LLast[LBest]) div 2;
+    Inc(LCount);
+    LFirst[LCount] := LMiddle + 1;
+    LLast[LCount] := LLast[LBest];
+    LLast[LBest] := LMiddle;
+  end;
+  for i := 1 to LCount do
+  begin
+    LRed := 0;
+    LGreen := 0;
+    LBlue := 0;
+    for j := LFirst[i] to LLast[i] do
+    begin
+      Inc(LRed, AColors[j].Red);
+      Inc(LGreen, AColors[j].Green);
+      Inc(LBlue, AColors[j].Blue);
+    end;
+    j := LLast[i] - LFirst[i] + 1;
+    result[i].Red := (LRed + j div 2) div j;
+    result[i].Green := (LGreen + j div 2) div j;
+    result[i].Blue := (LBlue + j div 2) div j;
+  end;
+end;
+
 procedure ConvertImage(AImage: TFPCustomImage; out AIcon: TWin3Icon);
 var
   x, y, LLeft, LTop, LRight, LBottom, LOffsetX, LOffsetY: integer;
+  LColors: TColorArray;
+  LColor: TIconColor;
 begin
   LLeft := AImage.Width;
   LTop := AImage.Height;
@@ -61,6 +186,22 @@ begin
   LOffsetY := LTop - (IconHeight - (LBottom - LTop + 1)) div 2;
 
   ClearIcon(AIcon);
+  SetLength(LColors, 0);
+  for y := 0 to IconHeight - 1 do
+    for x := 0 to IconWidth - 1 do
+      if (x + LOffsetX >= 0) and (x + LOffsetX < AImage.Width)
+      and (y + LOffsetY >= 0) and (y + LOffsetY < AImage.Height)
+      and IsOpaque(AImage.Colors[x + LOffsetX, y + LOffsetY]) then
+      begin
+        LColor := ToIconColor(AImage.Colors[x + LOffsetX, y + LOffsetY]);
+        if not IsDark(LColor) then
+        begin
+          SetLength(LColors, Length(LColors) + 1);
+          LColors[High(LColors)] := LColor;
+        end;
+      end;
+  AIcon.Palette := BuildPalette(LColors);
+
   for y := 0 to IconHeight - 1 do
     for x := 0 to IconWidth - 1 do
       if (x + LOffsetX >= 0) and (x + LOffsetX < AImage.Width)

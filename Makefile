@@ -21,11 +21,13 @@ temp temp/tools:
 
 temp/tools: | temp
 
-ICON_SOURCE := images/bftc/bb.png
+ICON_SOURCE := android/icon/lark.png
 
 icon: tools/makeicon.pas tools/win3icon.pas | temp/tools
+	magick $(ICON_SOURCE) -resize 256x256 -strip images/icon.png
+	magick $(ICON_SOURCE) -fuzz 8% -fill none -draw "color 0,0 floodfill" -trim +repage -filter point -resize 32x32 temp/tools/icon32.png
 	fpc -vq -FUtemp/tools -FEtemp/tools tools/makeicon.pas
-	temp/tools/makeicon $(ICON_SOURCE) images/alouette-chess.ico images/icon.png 3
+	temp/tools/makeicon temp/tools/icon32.png images/alouette-chess.ico
 
 ifneq ($(OS),Windows_NT)
 UNAME_S := $(shell uname -s)
