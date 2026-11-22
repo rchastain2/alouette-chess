@@ -27,6 +27,8 @@ const
   CStatusY = 30;
   CSecondY = 44;
   CListY = 66;
+  CTitleBand = 26;
+  CNoTitleShift = 20;
   CLineHeight = 13;
   CHelpStep = 12;
   CButtonColumns = 3;
@@ -86,7 +88,8 @@ var
   LSquare, LMargin, LBoardSize, LWidth, LHeight, LDotSize: integer;
   LPieceTop, LPopupX, LPopupY, LPopupW, LPopupH: integer;
   LHelpSepY, LHelpY, LMaxLines: integer;
-  LPanelX, LPanelY, LPanelW, LPanelH, LButtonY: integer;
+  LPanelX, LPanelY, LPanelW, LPanelH, LButtonY, LContentY, LTopBand: integer;
+  LMainView, LTitleView: TSDL_Rect;
   LVertical: boolean = FALSE;
   LFramedBoard: boolean;
   LBoardTexture: PSDL_Texture;
@@ -455,16 +458,20 @@ begin
     LPanelX := 0;
     LPanelY := LBoardSize;
     LPanelW := LBoardSize;
-    LPanelH := LBoardSize * 11 div 9;
+    LPanelH := LBoardSize * 11 div 9 - CTitleBand;
+    LTopBand := CTitleBand;
+    LContentY := LPanelY - CNoTitleShift;
   end else
   begin
     LPanelX := LBoardSize;
     LPanelY := 0;
     LPanelW := CPanelWidth;
     LPanelH := LBoardSize;
+    LTopBand := 0;
+    LContentY := LPanelY;
   end;
   LWidth := LPanelX + LPanelW;
-  LHeight := LPanelY + LPanelH;
+  LHeight := LTopBand + LPanelY + LPanelH;
   LDotSize := 2 * (LSquare div 8);
 end;
 
@@ -929,7 +936,7 @@ begin
   end else
     LHelpSepY := LPanelY + LPanelH - 12 - (Ord(LHasEngineLine) + VisibleCommandCount) * CHelpStep;
   LHelpY := LHelpSepY + 6;
-  LMaxLines := (LHelpSepY - 6 - LPanelY - CListY) div CLineHeight;
+  LMaxLines := (LHelpSepY - 6 - LContentY - CListY) div CLineHeight;
 end;
 
 procedure TextureSize(const ATexture: PSDL_Texture; out AW, AH: integer);
@@ -1879,21 +1886,22 @@ begin
     FillRect(LPanelX, LPanelY, LPanelW, 2, Color(ciPanelBorder))
   else
     FillRect(LPanelX, LPanelY, 2, LPanelH, Color(ciPanelBorder));
-  DrawText(LTitleFont, LPanelX + (LPanelW - TextWidth(LTitleFont, UpperCase(CAppTitle))) div 2, LPanelY + CTitleY, UpperCase(CAppTitle), Color(ciTitle));
+  if not LVertical then
+    DrawText(LTitleFont, LPanelX + (LPanelW - TextWidth(LTitleFont, UpperCase(CAppTitle))) div 2, LPanelY + CTitleY, UpperCase(CAppTitle), Color(ciTitle));
   LStatus := StatusText(LSecond);
   if (LNotice <> '') and (SDL_GetTicks < LNoticeUntil) then
     LSecond := LNotice;
-  DrawText(LTextFont, LPanelX + CStatusX, LPanelY + CStatusY, LStatus, Color(ciStatus));
+  DrawText(LTextFont, LPanelX + CStatusX, LContentY + CStatusY, LStatus, Color(ciStatus));
   if LSecond <> '' then
-    DrawText(LTextFont, LPanelX + CStatusX, LPanelY + CSecondY, LSecond, Color(ciSecond));
-  FillRect(LPanelX + 8, LPanelY + CListY - 8, LPanelW - 16, 1, Color(ciSeparator));
+    DrawText(LTextFont, LPanelX + CStatusX, LContentY + CSecondY, LSecond, Color(ciSecond));
+  FillRect(LPanelX + 8, LContentY + CListY - 8, LPanelW - 16, 1, Color(ciSeparator));
   LLines := (MoveSlot(LSanMoves.Count) + 1) div 2;
   LFirst := 0;
   if LLines > LMaxLines then
     LFirst := LLines - LMaxLines;
   for i := LFirst to LLines - 1 do
   begin
-    y := LPanelY + CListY + (i - LFirst) * CLineHeight;
+    y := LContentY + CListY + (i - LFirst) * CLineHeight;
     LWhite := '...';
     if 2 * i - Ord(LBlackFirst) >= 0 then
       LWhite := LSanMoves[2 * i - Ord(LBlackFirst)];
@@ -1943,11 +1951,22 @@ begin
   end;
 end;
 
+procedure DrawTitleBand;
+begin
+  SDL_SetRenderViewport(LRenderer, @LTitleView);
+  FillRect(0, 0, LWidth, LTopBand, Color(ciPanel));
+  FillRect(0, LTopBand - 2, LWidth, 2, Color(ciPanelBorder));
+  DrawText(LTitleFont, (LWidth - TextWidth(LTitleFont, UpperCase(CAppTitle))) div 2, (LTopBand - 2 - TTF_GetFontHeight(LTitleFont)) div 2, UpperCase(CAppTitle), Color(ciTitle));
+  SDL_SetRenderViewport(LRenderer, @LMainView);
+end;
+
 procedure Render;
 begin
   SDL_SetRenderDrawColor(LRenderer, Color(ciClear).r, Color(ciClear).g, Color(ciClear).b, Color(ciClear).a);
   SDL_RenderClear(LRenderer);
   SDL_SetRenderDrawBlendMode(LRenderer, SDL_BLENDMODE_BLEND);
+  if LTopBand > 0 then
+    DrawTitleBand;
   DrawBoard;
   DrawPanel;
   if LPromoting then
@@ -2034,14 +2053,52 @@ begin
   end;
 end;
 
+procedure SetupViews(const ATop: integer);
+begin
+  LTitleView.x := 0;
+  LTitleView.y := ATop;
+  LTitleView.w := LWidth;
+  LTitleView.h := LTopBand;
+  LMainView.x := 0;
+  LMainView.y := ATop + LTopBand;
+  LMainView.w := LWidth;
+  LMainView.h := LHeight - LMainView.y;
+  SDL_SetRenderViewport(LRenderer, @LMainView);
+end;
+
+{$IFDEF ANDROID}
+procedure FitSafeArea;
+var
+  LSafe: TSDL_Rect;
+  w, h, LTop, LBottom: integer;
+begin
+  if not SDL_GetWindowSize(LWindow, @w, @h) or not SDL_GetWindowSafeArea(LWindow, @LSafe) then
+    exit;
+  LScale := LSafe.w div LWidth;
+  if LScale < 1 then
+    LScale := 1;
+  LTop := (LSafe.y + LScale - 1) div LScale;
+  LBottom := (LSafe.y + LSafe.h) div LScale;
+  LPanelH := LBottom - LTop - LTopBand - LPanelY;
+  LHeight := h div LScale;
+  SDL_SetRenderLogicalPresentation(LRenderer, LWidth, LHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
+  SetupViews(LTop);
+  WriteLog(Format('Window %dx%d, safe area %d,%d %dx%d, scale %d, panel height %d', [w, h, LSafe.x, LSafe.y, LSafe.w, LSafe.h, LScale, LPanelH]));
+end;
+{$ENDIF}
+
 procedure Run;
 begin
   LoadConfig;
-  SetupPanel;
   if not SDL_CreateWindowAndRenderer(CAppTitle, LScale * LWidth, LScale * LHeight, 0, @LWindow, @LRenderer) then
     Fail('SDL_CreateWindowAndRenderer');
   SetWindowIcon;
   SDL_SetRenderLogicalPresentation(LRenderer, LWidth, LHeight, SDL_LOGICAL_PRESENTATION_INTEGER_SCALE);
+  SetupViews(0);
+{$IFDEF ANDROID}
+  FitSafeArea;
+{$ENDIF}
+  SetupPanel;
   if not SDL_SetRenderVSync(LRenderer, 1) then
     SDL_SetRenderVSync(LRenderer, SDL_RENDERER_VSYNC_ADAPTIVE);
   LoadTextures;
