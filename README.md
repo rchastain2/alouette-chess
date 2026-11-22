@@ -2,7 +2,7 @@
 
 A pixel-art chess game written in Free Pascal with SDL3, for Linux, Windows and Android. Play against a friend on the same device, or against a UCI chess engine.
 
-![Screenshot](screenshots/020-lucas.png)
+![Screenshot](screenshots/lucas.png)
 
 ## Features
 
